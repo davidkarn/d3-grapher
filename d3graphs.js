@@ -53,12 +53,36 @@ function hashes_merge_data() {
 // Functions drawing to the svg should draw in layers by applying classes to all DOM elements 
 // and select()ing only elements of their layer (like axes with labels, charts, legends, etc).
 // This way multiple charts can be overlapped or combined without moving around the wrong elements.
-	    
+
+var graphing_modules = {};
+
+function register_graphing_module(name, module) {
+    graphing_modules[name] = module; }
 
 function create_graph(svg, data) {
     var graph = {};
+    
+    graph.layers = {};
+    graph.style = {;}
+
+    for (var name in graphing_modules) {
+	graphing_modules[name](graph); }
 
     return graph; }
+
+register_graphing_module(
+    'axes', function(graph) {
+	
+	// Should take two hashes of parameters for the x and y axes and a layer name
+	// as arguments, and draws the axes on the layer given. The available options for 
+	// each axis are:
+	//
+	// key, from, to, interval, divisions, draw_gridlines, axis_style,
+	// guideline_style, font_style, style
+
+	graph.draw_axes = function(x, y, layer) {
+	    
+			 
 
 if (Meteor.isClient) {
   Template.hello.greeting = function () {
