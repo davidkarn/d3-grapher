@@ -59,11 +59,39 @@ var graphing_modules = {};
 function register_graphing_module(name, module) {
     graphing_modules[name] = module; }
 
-function create_graph(svg, data) {
+function create_graph(svg, data, options) {
     var graph = {};
     
     graph.layers = {};
     graph.style = {;}
+    graph.width = options.width || svg.width;
+    graph.height = options.height || svg.height;
+    graph.offset_x = options.offset_x || 0;
+    graph.offset_y = options.offset_y || 0;
+
+    graph.get_pos = function(x, y) {
+	return {x: (x + this.offset_x), 
+		y: (y + this.offset_y)}; }
+
+    graph.get_pos_x = function(x) {
+	return this.offset_x + x; }
+
+    graph.get_pos_y = function(y) {
+	return this.offset_y + y; }
+
+    graph.get_percent_x = function(percent) {
+	return this.width * percent; }
+
+    graph.get_percent_y = function(percent) {
+	return this.height * percent; }
+
+    graph.get_percent_pos_x = function(percent) {
+	return this.offset_x + 
+	    (this.width * percent); }
+
+    graph.get_percent_pos_y = function(percent) {
+	return this.offset_y 
+	    + (this.height * percent); }
 
     for (var name in graphing_modules) {
 	graphing_modules[name](graph); }
@@ -78,7 +106,7 @@ register_graphing_module(
 	// each axis are:
 	//
 	// key, from, to, interval, divisions, draw_gridlines, axis_style,
-	// guideline_style, font_style, style
+	// guideline_style, font_style, style, size
 
 	graph.draw_axes = function(x, y, layer) {
 	    
