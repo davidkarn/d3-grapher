@@ -138,21 +138,6 @@ function interval_getter(interval_length) {
     return function(d, i) {
 	return i * interval_length; }; }
 
-// take a list of styles ending with the highest in precedence and apply them to the d3 
-// selection items. Styles should take the format:
-//
-// { styles: {fill: '#333', ...}, 
-//   attrs: {'text-anchor': 'middle', ...}}
-
-function apply_styles(items, styles) {
-    }
-
-function merge_styles(styles) {
-    if (styles.length == 1) {
-	return styles; }
-    else {
-	
-
 function enter_and_exit(svg, data, tag, classes, styles) {
     return apply_styles(
 	apply_classes(
@@ -160,6 +145,34 @@ function enter_and_exit(svg, data, tag, classes, styles) {
 	    svg.selectAll(selector.apply([tag].concat(classes)))
 		.data(data).enter(tag).exit()), 
 	styles); }
+
+// take a list of styles ending with the highest in precedence and apply them to the d3 
+// selection items. Styles should take the format:
+//
+// { styles: {fill: '#333', ...}, 
+//   attrs: {'text-anchor': 'middle', ...}}
+
+function apply_styles(items, styles) {
+    style = merge_style(styles);
+    for (var key in style.styles) {
+	items.style(key, style.styles[key]); }
+    for (var key in style.attrs) {
+	items.attr(key, style.attrs[key]); }
+    return items; }
+
+function merge_styles(styles) {
+    if (styles.length == 1) {
+	return styles; }
+    else {
+	return {styles: descend((styles[0].styles || {}),
+				(styles[1].styles || {})),
+		attrs: descend((styles[0].attrs || {}),
+			       (styles[1].attrs || {}))};}}
+
+function descend(from_hash, to_hash) {
+    for (var key in to_hash) {
+	from_hash[key] = to_hash[key]; }
+    return from_hash; }
 
 function returner(a) {
     return a; }
