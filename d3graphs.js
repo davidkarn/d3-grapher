@@ -59,15 +59,15 @@ var graphing_modules = {};
 function register_graphing_module(name, module) {
     graphing_modules[name] = module; }
 
-function create_graph(svg, data, options) {
+create_graph = function(svg, data, options) {
     var graph = {};
     
     graph.data = data;
     graph.svg = svg;
     graph.layers = {};
-    graph.style = {;}
-    graph.width = options.width || svg.width;
-    graph.height = options.height || svg.height;
+    graph.style = {};
+    graph.width = options.width || parseInt(svg.attr('width'));
+    graph.height = options.height || parseInt(svg.attr('height'));
     graph.offset_x = options.offset_x || 0;
     graph.offset_y = options.offset_y || 0;
 
@@ -95,11 +95,11 @@ function create_graph(svg, data, options) {
 	return this.offset_y 
 	    + (this.height * percent); }
 
-    graph.get_percent_pos_from_x = function(percent) {
+    graph.get_percent_from_pos_x = function(percent) {
 	return this.offset_x + this.width -
 	    (this.width * percent); }
 
-    graph.get_percent_pos_from_y = function(percent) {
+    graph.get_percent_from_pos_y = function(percent) {
 	return this.offset_y + this.height - 
 	    (this.height * percent); }
 
@@ -113,6 +113,16 @@ function create_graph(svg, data, options) {
 
     return graph; }
 
+// take a hash or array of objects, and return a list of all
+// valuse of the given key
+
+function get_key(hash) {
+    var rh = [];
+    for (var i in hash) {
+	rh.push(hash[i]); }
+    return rh; }
+
+
 function extract_from_hash(hash, key) {
     var a = [];
     for (var i in hash) {
@@ -120,17 +130,17 @@ function extract_from_hash(hash, key) {
 	    a.push(hash[i][key]); }}
     return a; }
 
-function selector(tagname, layername) {
-    var s = tagname = '.' + layername;
+ selector = function(tagname, layername) {
+    var s = tagname + ' .' + layername;
     for (var i = 2; i < arguments.length; i++) {
 	s += '.' + arguments[i]; }
     return s; }
 
-function apply_classes(classes. to) {
+function apply_classes(classes, to) {
     var s = classes.join(".");
     return to.attr('class', s); }
 
-function grabber('key') {
+function grabber(key) {
     return function(d) {
 	return d.key; }}
 
@@ -139,12 +149,13 @@ function interval_getter(interval_length) {
 	return i * interval_length; }; }
 
 function enter_and_exit(svg, data, tag, classes, styles) {
-    return apply_styles(
+    return apply_style(
 	apply_classes(
 	    classes,
 	    svg.selectAll(selector.apply([tag].concat(classes)))
-		.data(data).enter(tag).exit()), 
+		.data(data).enter().append(tag)), 
 	styles); }
+
 
 // take a list of styles ending with the highest in precedence and apply them to the d3 
 // selection items. Styles should take the format:
@@ -152,7 +163,7 @@ function enter_and_exit(svg, data, tag, classes, styles) {
 // { styles: {fill: '#333', ...}, 
 //   attrs: {'text-anchor': 'middle', ...}}
 
-function apply_styles(items, styles) {
+function apply_style(items, styles) {
     style = merge_style(styles);
     for (var key in style.styles) {
 	items.style(key, style.styles[key]); }
@@ -160,14 +171,17 @@ function apply_styles(items, styles) {
 	items.attr(key, style.attrs[key]); }
     return items; }
 
-function merge_styles(styles) {
-    if (styles.length == 1) {
-	return styles; }
-    else {
-	return {styles: descend((styles[0].styles || {}),
-				(styles[1].styles || {})),
-		attrs: descend((styles[0].attrs || {}),
-			       (styles[1].attrs || {}))};}}
+function merge_style(styles) {
+    styles = styles.filter(function(x) {return x; });
+    console.log(JSON.stringify(styles));
+    var style = {styles: {}, attrs: {}};
+    for (var i in styles) {
+	style = {styles: descend(style.styles || {},
+				 styles[i].styles || {}),
+		 attrs: descend(style.attrs || {},
+				styles[i].attrs || {})}; }
+    console.log(JSON.stringify(style));
+    return style; }
 
 function descend(from_hash, to_hash) {
     for (var key in to_hash) {
@@ -179,7 +193,7 @@ function returner(a) {
 
 register_graphing_module(
     'axes', function(graph) {
-	function default_sort = function(a, b) {
+	default_sort = function(a, b) {
 	    return ((a < b) ? -1 : 
 		    ((a > b) ? 1 : 0)); }
 
@@ -191,8 +205,7 @@ register_graphing_module(
 	// guideline_style, font_style, style, size, sort
 
 	graph.draw_axes = function(x, y, layer) {
-	    graph.draw_axis_x(x, layer); 
-	    }
+	    graph.draw_axis_x(x, layer); }
 
 	graph.draw_axis_x = function(params, layer) {
 	    layer = layer || this.gen_layer_name();
@@ -205,30 +218,30 @@ register_graphing_module(
 		.sort(sort_fun);
 	    var svg = this.svg;
 	    var offset = params.offset 
-		|| this.get_percent_from_pos_x((this.height && (this.height * 0.01)) || 0.1);
-	    var borderline = {x1: this.x, x2: (this.x + this.width), y1: offset, y2: offset};
-
+		|| this.get_percent_from_pos_y(0.1);
+	    var borderline = {x1: this.offset_x, x2: (this.offset_x + this.width), y1: offset, y2: offset};
+	    console.log(JSON.stringify(borderline));
 	    // draw axis border line
 	    line = svg.selectAll(selector('line', layer, 'x_axis', 'borderline'))
-		.data(borderline).enter('line').exit()
-		.attr('x1', grabber('x1'))
-		.attr('y1', grabber('y1'))
-		.attr('x2', grabber('x2'))
-		.attr('y2', grabber('y2'));
+		.data([borderline]).enter().append('line')
+		.attr('x1', borderline.x1)
+		.attr('y1', borderline.y1)
+		.attr('x2', borderline.x2)
+		.attr('y2', borderline.y2);
 	    apply_style(line, [params.guideline_style, params.axis_style]);
 	    
 	    // draw guidelines
 
 	    var intervals = data.length;
 	    var interval_length = this.width / intervals;
-	    var guideline_top = this.y;
+	    var guideline_top = this.offset_y;
 	    var guideline_btm = offset;
 
-	    guidelines = get_key(data, key)
+	    guidelines = get_key(data, key);
 	    glines = svg.selectAll(selector('line', layer, 'x_axis', 'guideline'))
-		.data(data).enter('line').exit()
+		.data(data).enter().append('line')
 		.attr('x1', interval_getter(interval_length))
-		.attr('y1', guideline_top),
+		.attr('y1', guideline_top)
 		.attr('x2', interval_getter(interval_length))
 		.attr('y2', guideline_btm);
 	    apply_style(glines, [params.guideline_style]);
@@ -236,18 +249,14 @@ register_graphing_module(
 	    // draw labels
 	    
 	    var text_offset = (offset + this.height) / 2;
-	    labels = enter_and_exit(svg, data, 'line', 
+	    labels = enter_and_exit(svg, data, 'text', 
 				    [layer, 'x_axis', 'label'], 
 				    [params.font_style])
 		.attr('x', interval_getter(interval_length))
 		.attr('y', text_offset)
-		.text(returner); }
-
-	    
-	    
+		.text(returner); }});	    
 		
-			 
-		    
+
 if (Meteor.isClient) {
   Template.hello.greeting = function () {
     return "Welcome to d3graphs.";
