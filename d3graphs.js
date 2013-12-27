@@ -68,8 +68,18 @@ create_graph = function(svg, data, options) {
     graph.style = {};
     graph.width = options.width || parseInt(svg.attr('width'));
     graph.height = options.height || parseInt(svg.attr('height'));
+    graph.margins = {top: (options.margin_top || 0), right: (options.margin_right || 0),
+		     left: (options.margin_left || (0.1 * graph.width)),
+		     bottom: (options.margin_bottom || (0.1 * graph.height))};
     graph.offset_x = options.offset_x || 0;
     graph.offset_y = options.offset_y || 0;
+    graph.margin_top = graph.offset_y + graph.margins.top;
+    graph.margin_left = graph.offset_x + graph.margins.left;
+    graph.margin_bottom = graph.offset_y + graph.height - graph.margins.bottom;
+    graph.margin_right = graph.offset_x + graph.width - graph.margins.right;
+    graph.inner_width = graph.margin_right - graph.margin_left;
+    graph.inner_height = graph.margin_bottom - graph.margin_top;
+
 
     graph.get_pos = function(x, y) {
 	return {x: (x + this.offset_x), 
@@ -144,9 +154,10 @@ function grabber(key) {
     return function(d) {
 	return d.key; }}
 
-function interval_getter(interval_length) {
+function interval_getter(interval_length, offset) {
     return function(d, i) {
-	return i * interval_length; }; }
+	return (offset || 0) 
+	    + (i * interval_length); }; }
 
 function enter_and_exit(svg, data, tag, classes, styles) {
     return apply_style(
@@ -205,7 +216,65 @@ register_graphing_module(
 	// guideline_style, font_style, style, size, sort
 
 	graph.draw_axes = function(x, y, layer) {
-	    graph.draw_axis_x(x, layer); }
+	    graph.draw_axis_x(x, layer); 
+	    graph.draw_axis_y(y, layer); }
+
+	graph.draw_axis_y = function(params, layer) {
+ 	    layer = layer || this.gen_layer_name();
+	    var sort_fun = params.sort || default_sort;
+	    var key = params.key;
+//		|| (keys && keys(this.data[0])[0]);
+	    var sort = function(a, b) {
+		return sort_fun(a.key, b.key); }
+	    var data = extract_from_hash(this.data, key)
+		.sort(sort_fun);
+	    var svg = this.svg;
+	    var offset = params.offset 
+		|| this.margin_left;
+	    var borderline = {y1: this.margin_top, y2: this.margin_bottom, x1: offset, x2: offset};
+	    console.log(JSON.stringify(borderline));
+	    // draw axis border line
+	    bline = enter_and_exit(svg, borderline, 'line', [layer, 'y_axis', 'borderline'],
+				  [params.guideline_style, params.axis_style])
+		.attr('x1', borderline.x1)
+		.attr('y1', borderline.y1)
+		.attr('x2', borderline.x2)
+		.attr('y2', borderline.y2);
+	    
+	    // draw guidelines
+
+	    var intervals = params.intervals || data.length;
+	    var start = data[0];
+	    var end = data[data.length - 1];
+	    var interval_length = this.inner_height / intervals;
+	    var interval_amount = end / intervals;
+	    var guideline_end = this.margin_right;
+	    var guideline_start = offset;
+	    var graph = this;
+
+	    var data = [];
+	    for (var i = end; i >= start; i-= interval_amount) {
+		data.push(i); }
+
+	    guidelines = get_key(data, key);
+	    glines = enter_and_exit(svg, data, 'line', [layer, 'y_axis', 'guideline'],
+				  [params.guideline_style])
+		.attr('y1', function(d, i) {
+		    return graph.margin_top + (i * interval_length); })
+		.attr('x1', guideline_end)
+		.attr('y2', function(d, i) {
+		    return graph.margin_top + (i * interval_length); })
+		.attr('x2', guideline_start);
+	    
+	    // draw labels
+	    
+	    var text_offset = (offset + this.offset_x) / 2;
+	    labels = enter_and_exit(svg, data, 'text', 
+				    [layer, 'x_axis', 'label'], 
+				    [params.font_style])
+		.attr('y', interval_getter(interval_length, this.margin_top  + 12))
+		.attr('x', text_offset)
+		.text(returner); }
 
 	graph.draw_axis_x = function(params, layer) {
 	    layer = layer || this.gen_layer_name();
@@ -218,8 +287,8 @@ register_graphing_module(
 		.sort(sort_fun);
 	    var svg = this.svg;
 	    var offset = params.offset 
-		|| this.get_percent_from_pos_y(0.1);
-	    var borderline = {x1: this.offset_x, x2: (this.offset_x + this.width), y1: offset, y2: offset};
+		|| this.margin_bottom;
+	    var borderline = {x1: this.margin_left, x2: this.margin_right, y1: offset, y2: offset};
 	    console.log(JSON.stringify(borderline));
 	    // draw axis border line
 	    line = svg.selectAll(selector('line', layer, 'x_axis', 'borderline'))
@@ -233,16 +302,19 @@ register_graphing_module(
 	    // draw guidelines
 
 	    var intervals = data.length;
-	    var interval_length = this.width / intervals;
-	    var guideline_top = this.offset_y;
+	    var interval_length = this.inner_width / intervals;
+	    var guideline_top = this.margin_top;
 	    var guideline_btm = offset;
+	    var graph = this;
 
 	    guidelines = get_key(data, key);
 	    glines = svg.selectAll(selector('line', layer, 'x_axis', 'guideline'))
 		.data(data).enter().append('line')
-		.attr('x1', interval_getter(interval_length))
+		.attr('x1', function(d, i) {
+		    return graph.margin_left + (i * interval_length); })
 		.attr('y1', guideline_top)
-		.attr('x2', interval_getter(interval_length))
+		.attr('x2', function(d, i) {
+		    return graph.margin_left + (i * interval_length); })
 		.attr('y2', guideline_btm);
 	    apply_style(glines, [params.guideline_style]);
 	    
@@ -252,7 +324,7 @@ register_graphing_module(
 	    labels = enter_and_exit(svg, data, 'text', 
 				    [layer, 'x_axis', 'label'], 
 				    [params.font_style])
-		.attr('x', interval_getter(interval_length))
+		.attr('x', interval_getter(interval_length, this.margin_left))
 		.attr('y', text_offset)
 		.text(returner); }});	    
 		
