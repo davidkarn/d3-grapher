@@ -133,11 +133,15 @@ function get_key(hash) {
     return rh; }
 
 
-function extract_from_hash(hash, key) {
+function extract_from_hash(hash, key, including_fields) {
     var a = [];
     for (var i in hash) {
 	if (hash[i][key]) {
-	    a.push(hash[i][key]); }}
+	    var val = hash[i][key];
+	    for (var j in including_fields) {
+		var field = including_fields[j];
+		val[field] = hash[i][field]; }
+	    a.push(val); }}
     return a; }
 
  selector = function(tagname, layername) {
@@ -202,6 +206,28 @@ function descend(from_hash, to_hash) {
 function returner(a) {
     return a; }
 
+function hash_to_array(hash) {
+    var array = [];
+    for (var i in hash) {
+	array.push(hash[i]); }
+    return array; }
+
+register_graphing_module(
+    'colorizer', function(graph) {
+
+	graph.random_colorizer = function(s, b, a) {
+	    return function() {
+		var s = s || '50%';
+		var b = b || '50%';
+		var a = a || 0.75;
+		return 'hsla(' + (Math.round(Math.random() * 360)) + ', ' + s + ', ' + b + ', ' + a + ')'; }; }
+
+	graph.colorize = function (colorizer) {
+	    colorizer = colorizer || graph.random_colorizer();
+	    for (var i in graph.data) {
+		graph.data[i].__color = colorizer(graph.data[i]); }
+	    return graph; }});
+
 
 register_graphing_module(
     'bar_chart', function(graph) {
@@ -209,7 +235,7 @@ register_graphing_module(
 	graph.draw_bar_chart = function(params, layer) {
  	    layer = layer || this.gen_layer_name();
 	    var key = params.key;
-	    var data = extract_from_hash(this.data, key);
+	    var data = hash_to_array(this.data);
 	    var svg = this.svg;
 	    var scale_start = this.y_axis.start;
 	    var scale_end = this.y_axis.end;
@@ -217,10 +243,10 @@ register_graphing_module(
 	    var bars = data.length;
 	    var bar_width = this.inner_width / bars;
 	    var graph = this;
-
+	    
 	    function datum_height(d) {
 		var scale = scale_end - scale_start;
-		var datum = d - scale_start;
+		var datum = d[key] - scale_start;
 		return (datum / scale) * height; }
 
 	    console.log(data);
@@ -232,7 +258,8 @@ register_graphing_module(
 		.attr('height', datum_height)
 		.attr('y', function(d, i) {
 		    return (graph.margin_top + height) - datum_height(d); })
-		.attr('fill', 'rgba(120,120,120,0.8)');
+		.attr('fill', function (d, i) {
+		    return d.__color; });
 
 }});
 	    
