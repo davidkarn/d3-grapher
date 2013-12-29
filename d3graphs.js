@@ -202,9 +202,44 @@ function descend(from_hash, to_hash) {
 function returner(a) {
     return a; }
 
+
+register_graphing_module(
+    'bar_chart', function(graph) {
+	
+	graph.draw_bar_chart = function(params, layer) {
+ 	    layer = layer || this.gen_layer_name();
+	    var key = params.key;
+	    var data = extract_from_hash(this.data, key);
+	    var svg = this.svg;
+	    var scale_start = this.y_axis.start;
+	    var scale_end = this.y_axis.end;
+	    var height = this.inner_height;
+	    var bars = data.length;
+	    var bar_width = this.inner_width / bars;
+	    var graph = this;
+
+	    function datum_height(d) {
+		var scale = scale_end - scale_start;
+		var datum = d - scale_start;
+		return (datum / scale) * height; }
+
+	    console.log(data);
+	    enter_and_exit(svg, data, 'rect',
+			   [layer],
+			   [params.style])
+		.attr('width', bar_width)
+		.attr('x', interval_getter(bar_width, this.margin_left))
+		.attr('height', datum_height)
+		.attr('y', function(d, i) {
+		    return (graph.margin_top + height) - datum_height(d); })
+		.attr('fill', 'rgba(120,120,120,0.8)');
+
+}});
+	    
+
 register_graphing_module(
     'axes', function(graph) {
-	default_sort = function(a, b) {
+	var default_sort = function(a, b) {
 	    return ((a < b) ? -1 : 
 		    ((a > b) ? 1 : 0)); }
 
@@ -244,17 +279,21 @@ register_graphing_module(
 	    // draw guidelines
 
 	    var intervals = params.intervals || data.length;
-	    var start = data[0];
+	    var start = 0;
 	    var end = data[data.length - 1];
 	    var interval_length = this.inner_height / intervals;
 	    var interval_amount = end / intervals;
 	    var guideline_end = this.margin_right;
 	    var guideline_start = offset;
 	    var graph = this;
+	    
+	    graph.y_axis = descend(params, {intervals: intervals, interval_length: interval_length,
+					    interval_amount: interval_amount,
+					    start: start, end: end, layer: layer, offset: offset});
 
 	    var data = [];
-	    for (var i = end; i >= start; i-= interval_amount) {
-		data.push(i); }
+	    for (var i = intervals; i >= 1; i--) {
+		data.push(i*interval_amount); }
 
 	    guidelines = get_key(data, key);
 	    glines = enter_and_exit(svg, data, 'line', [layer, 'y_axis', 'guideline'],
