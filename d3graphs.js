@@ -260,8 +260,43 @@ register_graphing_module(
 		    return (graph.margin_top + height) - datum_height(d); })
 		.attr('fill', function (d, i) {
 		    return d.__color; });
-
 }});
+
+register_graphing_module(
+    'hovers', function(graph) {
+	graph.add_hovers = function(params, layer) {
+ 	    layer = layer || this.gen_layer_name();
+	    var above_layer = params.layer;
+	    var data = graph.svg.selectAll('.' + above_layer);
+	    var tag = data[0][0].tagName;
+	    var stroke_size = params.stroke_size || '5pt';
+
+	    var overlays = enter_and_exit(graph.svg, data[0], tag,
+					  [layer],
+					  [params.style]);
+
+	    for (var i =0; i < data[0][0].attributes.length; i++) {
+		var item = data[0][0].attributes.item(i);
+		overlays.attr(item.name, function(d, i) {
+		    console.log(d);
+		    return d.attributes.getNamedItem(item.name).value; }); }
+
+	    for (var style in data[0][0].style) {
+		overlays.style(style, function(d, i) {
+		    return d.style[style]; }); }
+	    
+	    overlays.attr('stroke-width', stroke_size)
+		.style('opacity', '0.0')
+		.attr('stroke', function(d) {
+		    attr = d.attributes.getNamedItem('fill') ||
+			d.attributes.getNamedItem('stroke');
+		    if (attr) { return attr.value; }
+		    return 'black'; })
+		.on('mouseover', function(d) {
+		    d3.select(this).style('opacity', '0.8'); })
+		.on('mouseout', function(d) {
+		    d3.select(this).style('opacity', '0.0'); }); }});
+	    
 	    
 register_graphing_module(
     'line_graph', function(graph) {
