@@ -222,7 +222,43 @@ register_graphing_module(
 		.filter(function(x) { return x;})
 		.length == graph.data.length; };
 	
-//	graph.draw_multiple_line_graphs = function() {
+	graph.draw_multiple_line_graphs = function(params, layer) {
+ 	    layer = layer || this.gen_layer_name();
+	    var key = params.key;
+	    var data = hash_to_array(this.data);
+	    var svg = this.svg;
+	    var scale_start = this.y_axis.start;
+	    var scale_end = this.y_axis.end;
+	    var height = this.inner_height;
+	    var bars = Math.max.apply(this, data.map(function(x) {
+		return x.data.length; }));
+	    var bar_width = this.inner_width / bars;
+	    var graph = this;
+	    
+	    function datum_height(d) {
+		var scale = scale_end - scale_start;
+		var datum = d[key] - scale_start;
+		return (datum / scale) * height; }
+
+	    console.log(data);
+	    enter_and_exit(svg, data, 'polyline',
+			   [layer],
+			   [params.style])
+		.attr('points', function(d) {
+		    var points = "";
+		    var data = d.data; 
+		    for (var i in data) {
+			var datum = data[i];
+			console.log(JSON.stringify(datum));
+			var y = (graph.margin_top + height) - datum_height(datum);
+			var x = interval_getter(bar_width, graph.margin_left)(false, i);
+			points += '' + x + ',' + y + ' '; }
+		    return points; })
+		.attr('datum_value', function(d) {
+		    return JSON.stringify(d); })
+		.style('fill', 'none')
+		.attr('stroke', function (d, i) {
+		    return d.__color || '#333'; }); };
 	    
     });
 

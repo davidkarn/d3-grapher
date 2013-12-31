@@ -63,7 +63,7 @@ loaditup = function() {
 		      styles: {'text-align': 'center'}}}, 
 	'axes'); 
     document.graph3.colorize();
-    document.graph3.draw_bar_chart({key: 'f'}, 'line_graph');
+    document.graph3.draw_multiple_line_graphs({key: 'f'}, 'line_graph');
     document.graph3.add_hovers({layer: 'line_graph'}); }
 
 if (Meteor.isClient) {
