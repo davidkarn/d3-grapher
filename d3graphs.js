@@ -307,9 +307,9 @@ register_graphing_module(
 
 	    var intervals = params.intervals || data.length;
 	    var start = 0;
-	    var end = data[data.length - 1];
 	    var interval_length = this.inner_height / intervals;
-	    var interval_amount = end / intervals;
+	    var interval_amount = Math.ceil(data[data.length - 1] / intervals);
+	    var end = interval_amount * intervals;
 	    var guideline_end = this.margin_right;
 	    var guideline_start = offset;
 	    var graph = this;
@@ -390,7 +390,8 @@ register_graphing_module(
 	    labels = enter_and_exit(svg, data, 'text', 
 				    [layer, 'x_axis', 'label'], 
 				    [params.font_style])
-		.attr('x', interval_getter(interval_length, this.margin_left))
+		.attr('x', interval_getter(interval_length, (this.margin_left
+							     + (interval_length / 2))))
 		.attr('y', text_offset)
 		.text(returner); }});	    
 		
