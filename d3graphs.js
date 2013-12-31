@@ -263,6 +263,44 @@ register_graphing_module(
 
 }});
 	    
+register_graphing_module(
+    'line_graph', function(graph) {
+	
+	graph.draw_line_graph = function(params, layer) {
+ 	    layer = layer || this.gen_layer_name();
+	    var key = params.key;
+	    var data = hash_to_array(this.data);
+	    var svg = this.svg;
+	    var scale_start = this.y_axis.start;
+	    var scale_end = this.y_axis.end;
+	    var height = this.inner_height;
+	    var bars = data.length;
+	    var bar_width = this.inner_width / bars;
+	    var graph = this;
+	    
+	    function datum_height(d) {
+		var scale = scale_end - scale_start;
+		var datum = d[key] - scale_start;
+		return (datum / scale) * height; }
+
+	    console.log(data);
+	    enter_and_exit(svg, data, 'line',
+			   [layer],
+			   [params.style])
+		.attr('x1', interval_getter(bar_width, this.margin_left))
+		.attr('x2', interval_getter(bar_width, this.margin_left + bar_width))
+		.attr('y1', function(d, i) {
+		    return (graph.margin_top + height) - datum_height(d); })
+		.attr('y2', function(d, i) {
+		    var d2 = data[i+1];
+		    if (d2) {
+			return (graph.margin_top + height) - datum_height(d2); }
+		    return (graph.margin_top + height) - datum_height(d); })
+		.attr('stroke', function (d, i) {
+		    return '#333'; });
+
+}});
+	    
 
 register_graphing_module(
     'axes', function(graph) {
