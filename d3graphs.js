@@ -344,13 +344,16 @@ register_graphing_module(
 
 	graph.draw_axis_x = function(params, layer) {
 	    layer = layer || this.gen_layer_name();
-	    var sort_fun = params.sort || default_sort;
+	    var sort_fun = params.sort;
 	    var key = params.key
 		|| (keys && keys(this.data[0])[0]);
 	    var sort = function(a, b) {
 		return sort_fun(a.key, b.key); }
-	    var data = extract_from_hash(this.data, key)
-		.sort(sort_fun);
+	    var data = extract_from_hash(this.data, key);
+
+	    if (sort_fun) {
+		data = data.sort(sort_fun); }
+
 	    var svg = this.svg;
 	    var offset = params.offset 
 		|| this.margin_bottom;
