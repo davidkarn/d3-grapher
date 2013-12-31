@@ -254,6 +254,8 @@ register_graphing_module(
 			   [layer],
 			   [params.style])
 		.attr('width', bar_width)
+		.attr('datum_value', function(d) {
+		    return d[key]; })
 		.attr('x', interval_getter(bar_width, this.margin_left))
 		.attr('height', datum_height)
 		.attr('y', function(d, i) {
@@ -271,6 +273,28 @@ register_graphing_module(
 	    var tag = data[0][0].tagName;
 	    var stroke_size = params.stroke_size || '5pt';
 
+	    var detail_hovers = enter_and_exit(graph.svg, data[0], 'text',
+					  [layer, 'label'],
+					  [params.style]);
+
+	    detail_hovers.attr('x', function(d) {
+		var attrs = d.attributes;
+		var a = attrs.getNamedItem('x') || attrs.getNamedItem('x1');
+		return parseInt(a.value) + 20; })
+		.attr('y', function(d) {
+		    var attrs = d.attributes;
+		    var a = attrs.getNamedItem('y') || attrs.getNamedItem('y1');
+		    return parseInt(a.value) - 20; })
+		.text(function(d) {
+		    return d.attributes.getNamedItem('datum_value').value; })
+		.attr('font-size', '14px')
+		.attr('fill', '#000')
+		.attr('font-family', 'verdana')
+		.attr('font-weight', 'bold')
+		.attr('class', function(d, i) {
+		    return this.className + " " + layer + '_' + i; })
+		.style('opacity', '0.0');
+
 	    var overlays = enter_and_exit(graph.svg, data[0], tag,
 					  [layer],
 					  [params.style]);
@@ -287,15 +311,17 @@ register_graphing_module(
 	    
 	    overlays.attr('stroke-width', stroke_size)
 		.style('opacity', '0.0')
+		.attr('class', function(d, i) {
+		    return this.className + " " + layer + '_' + i; })
 		.attr('stroke', function(d) {
 		    attr = d.attributes.getNamedItem('fill') ||
 			d.attributes.getNamedItem('stroke');
 		    if (attr) { return attr.value; }
 		    return 'black'; })
-		.on('mouseover', function(d) {
-		    d3.select(this).style('opacity', '0.8'); })
-		.on('mouseout', function(d) {
-		    d3.select(this).style('opacity', '0.0'); }); }});
+		.on('mouseover', function(d, i) {
+		    graph.svg.selectAll('.' + layer + '_' + i).style('opacity', '0.8'); })
+		.on('mouseout', function(d, i) {
+		    graph.svg.selectAll('.' + layer + '_' + i).style('opacity', '0.0'); }); }});
 	    
 	    
 register_graphing_module(
@@ -324,6 +350,8 @@ register_graphing_module(
 			   [params.style])
 		.attr('x1', interval_getter(bar_width, this.margin_left))
 		.attr('x2', interval_getter(bar_width, this.margin_left + bar_width))
+		.attr('datum_value', function(d) {
+		    return d[key]; })
 		.attr('y1', function(d, i) {
 		    return (graph.margin_top + height) - datum_height(d); })
 		.attr('y2', function(d, i) {
