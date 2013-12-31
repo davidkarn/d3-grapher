@@ -213,6 +213,20 @@ function hash_to_array(hash) {
     return array; }
 
 register_graphing_module(
+    'multiples', function(graph) {
+	
+	graph.has_multiple_datas = function() {
+	    return graph.data.map &&
+		graph.data.map(function(x) { 
+		    return x.label && x.data; })
+		.filter(function(x) { return x;})
+		.length == graph.data.length; };
+	
+//	graph.draw_multiple_line_graphs = function() {
+	    
+    });
+
+register_graphing_module(
     'colorizer', function(graph) {
 
 	graph.random_colorizer = function(s, b, a) {
@@ -280,15 +294,16 @@ register_graphing_module(
 	    detail_hovers.attr('x', function(d) {
 		var attrs = d.attributes;
 		var a = attrs.getNamedItem('x') || attrs.getNamedItem('x1');
-		return parseInt(a.value) + 20; })
+		return parseInt(a.value) + 8; })
 		.attr('y', function(d) {
 		    var attrs = d.attributes;
 		    var a = attrs.getNamedItem('y') || attrs.getNamedItem('y1');
-		    return parseInt(a.value) - 20; })
+		    return parseInt(a.value) - 14; })
 		.text(function(d) {
 		    return d.attributes.getNamedItem('datum_value').value; })
-		.attr('font-size', '14px')
+		.attr('font-size', '12px')
 		.attr('fill', '#000')
+		.style('background-color','#FFF')
 		.attr('font-family', 'verdana')
 		.attr('font-weight', 'bold')
 		.attr('class', function(d, i) {
@@ -391,6 +406,19 @@ register_graphing_module(
 		return sort_fun(a.key, b.key); }
 	    var data = extract_from_hash(this.data, key)
 		.sort(sort_fun);
+
+	    if (this.has_multiple_datas()) {
+		data = this.data.map(function(x) {
+		    return extract_from_hash(x.data, key); })
+		    .reduce(function(a, b) {
+			for (var i in b) {
+			    if (a.indexOf(b[i]) < 0) {
+				a.push(b[i]); }}
+			return a; })
+		    .sort(sort_fun); }
+
+	    console.log(JSON.stringify(data)); 
+
 	    var svg = this.svg;
 	    var offset = params.offset 
 		|| this.margin_left;
@@ -451,6 +479,15 @@ register_graphing_module(
 	    var sort = function(a, b) {
 		return sort_fun(a.key, b.key); }
 	    var data = extract_from_hash(this.data, key);
+
+	    if (this.has_multiple_datas()) {
+		data = this.data.map(function(x) {
+		    return extract_from_hash(x.data, key); })
+		    .reduce(function(a, b) {
+			for (var i in b) {
+			    if (a.indexOf(b[i]) < 0) {
+				a.push(b[i]); }}
+			return a; }); }
 
 	    if (sort_fun) {
 		data = data.sort(sort_fun); }
