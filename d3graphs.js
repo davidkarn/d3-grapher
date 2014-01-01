@@ -299,6 +299,55 @@ register_graphing_module(
 		.style('fill', 'none')
 		.attr('stroke', function (d, i) {
 		    return d.__color || '#333'; }); };
+
+	function mean(a) {
+	    return a.reduce(function(a,b) { return a + b; })
+		/ a.length; }
+	
+	graph.make_path = function(data, key, max, column_width) {
+	    var d = "M " + this.margin_left + ' ' + this.margin_bottom + " ";
+	    var graph = []
+		for (var i = 0; i < data.length; i++) {
+		    var datum = data[i];
+		    var x = this.margin_left + column_width * i;
+		    var y = this.margin_bottom - (this.inner_height * (datum[key] / max));
+		    graph.push([x,y]) }
+	    graph.push(this.margin_left + [column_width * (data.length - 1), this.margin_bottom]);
+	    d += "L " + graph[0].join(" ") + " ";
+	    for (i = 1; i < graph.length - 1; i++) {
+		var prev = graph[i - 1];
+		var dis = graph[i];
+		var next = graph[i + 1];
+		d += ["S", mean([prev[0],  dis[0]]), dis[1],  dis[0], dis[1]].join(" ") + " "; }
+	    return d + ["L"].concat(graph[graph.length - 1]).join(" ") + "z"; }
+
+	graph.draw_multiple_area_graph = function(params, layer) {
+ 	    layer = layer || this.gen_layer_name();
+	    var key = params.key;
+	    var data = hash_to_array(this.data);
+	    var svg = this.svg;
+	    var scale_start = this.y_axis.start;
+	    var scale_end = this.y_axis.end;  
+	    var height = this.inner_height;
+	    var bars = Math.max.apply(this, data.map(function(x) {
+		return x.data.length; }));
+	    var bar_width = this.inner_width / bars;
+	    var graph = this;
+	    
+	    function datum_height(d) {
+		var scale = scale_end - scale_start;
+		var datum = d[key] - scale_start;
+		return (datum / scale) * height; }
+
+	    enter_and_exit(svg, data, 'path',
+			   [layer],
+			   [params.style])
+		.attr('d', function(d) {
+		    return graph.make_path(d.data, key, scale_end, bar_width); })
+		.attr('datum_value', function(d) {
+		    return JSON.stringify(d); })
+		.attr('fill', function (d, i) {
+		    return d.__color || '#333'; }); };
 	    
     });
 
