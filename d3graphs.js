@@ -405,6 +405,39 @@ register_graphing_module(
 
 register_graphing_module(
     'hovers', function(graph) {
+
+	graph.get_datum_height = function(scale_end, scale_start, key) {
+	    return function(d) {
+		var scale = scale_end - scale_start;
+		var datum = d[key] - scale_start;
+		return (datum / scale) * height; }; };
+
+	graph.plot_points = function(key, margin_left, column_width, data, color) {
+	    var points = [];
+	    var height = this.inner_height;
+	    var top = this.margin_top;
+	    var bottom = this.margin_bottom;
+	    var scale_start = this.y_axis.start;
+	    var scale_end = this.y_axis.end;
+	    var datum_height = this.get_datum_height(scale_end, scale_start, key);
+
+	    for (var i in data) {
+		var d = data[i];
+		points.push({x: interval_getter(column_width, margin_left)(false, i),
+			     y: (bottom - datum_height(d)),
+			     datum: JSON.stringify(d),
+			     color: (color || d.__color)}); }; 
+	    return points; }
+		
+		
+
+	graph.draw_dots = function(params, layer) {
+ 	    layer = layer || this.gen_layer_name();
+	    var above_layer = params.layer;
+	    var data = this.data; }
+
+
+
 	graph.add_hovers = function(params, layer) {
  	    layer = layer || this.gen_layer_name();
 	    var above_layer = params.layer;
