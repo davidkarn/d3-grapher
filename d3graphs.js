@@ -222,7 +222,7 @@ register_graphing_module(
 		.filter(function(x) { return x;})
 		.length == graph.data.length; };
 
-	function column_count() {
+	graph.column_count() {
 	    return Math.max.apply(graph, graph.data.map(function(x) {
 		return x.data.length; })); }
 	
@@ -429,12 +429,36 @@ register_graphing_module(
 			     color: (color || d.__color)}); }; 
 	    return points; }
 		
-		
+	graph.plot_points_multiple = function(key, divide_columns) {
+	    var data = this.data;
+	    var scale_start = this.y_axis.start;
+	    var scale_end = this.y_axis.end;  
+	    var height = this.inner_height;
+	    var columns = this.column_count();
+	    var column_width = this.inner_width / bars;
+	    
+	    if (divide_columns) {
+		var bars = data.length;
+		var bar_width = column_width / bars; }
+
+	    var points = [];
+	    
+	    for (var i in data) { 
+		var d = data[i];
+		points.push(this.plot_points(
+		    key, 
+		    this.margin_left 
+			+ (divide_columns ? bar_width * i : 0), 
+		    column_width, 
+		    d.data, 
+		    d.__color)); }
+	    return points; };
 
 	graph.draw_dots = function(params, layer) {
  	    layer = layer || this.gen_layer_name();
 	    var above_layer = params.layer;
-	    var data = this.data; }
+	    var data = this.data;
+	    }; 
 
 
 
