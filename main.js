@@ -63,9 +63,59 @@ loaditup = function() {
 		      styles: {'text-align': 'center'}}}, 
 	'axes'); 
     document.graph3.colorize();
-    document.graph3.draw_multiple_line_graphs({key: 'f'}, 'line_graph');
-    document.graph3.add_hovers({layer: 'line_graph'}); }
+    document.graph3.draw_multiple_line_graphs({key: 'f', style: {styles: {'stroke-width': '2pt'}}}, 'line_graph');
+//    document.graph3.add_hovers({layer: 'line_graph'}); 
+
+    document.graph4 = create_graph(
+	d3.select('body')
+	    .append('svg')
+	    .attr('width', 500)
+	    .attr('height', 300),
+      [{label: 'first',
+	data: [{test: 'one', f: 5}, 
+	       {test: 'two', f: 3}, 
+	       {test: 'three', f: 12.76}, 
+	       {test: 'four', f: 14.2}, 
+	       {test: 'five', f: 8.3}, 
+	       {test: 'six', f: 2.43}]},
+       {label: 'second',
+	data: [{test: 'one', f: 3.2}, 
+	       {test: 'two', f: 5.4}, 
+	       {test: 'three', f: 6.2}, 
+	       {test: 'four', f: 2.3}, 
+	       {test: 'five', f: 8.3}, 
+	       {test: 'six', f: 14.89}]},
+       {label: 'third',
+	data: [{test: 'one', f: 9.3}, 
+	       {test: 'two', f: 12.4}, 
+	       {test: 'three', f: 16.3}, 
+	       {test: 'four', f: 18.4}, 
+	       {test: 'five', f: 5.6}, 
+	       {test: 'six', f: 4.4}]}], 
+				   {});
+    document.graph4.draw_axes(
+	{key: 'test', 
+	 guideline_style: {styles: {stroke:'#ddd', 
+				    'stroke-width': '0.5pt'}}, 
+	 axis_style: {styles: {stroke:'black', 
+			       'stroke-width': '1pt'}}, 
+	 font_style: {attrs: {'font-size': 14, 
+			      'font-family': 'verdana, sans serif', 
+			      fill:'#444'}}},
+	{intervals: 6, 
+	 key: 'f', 
+	 guideline_style: {styles: {stroke:'#ddd', 
+				    'stroke-width': '0.5pt'}}, 
+	 axis_style: {styles: {stroke:'black', 
+			       'stroke-width': '1pt'}}, 
+	 font_style: {attrs: {'font-size': 14, 
+			      'font-family': 'verdana, sans serif', 
+			      fill:'#444'}, 
+		      styles: {'text-align': 'center'}}}, 
+	'axes'); 
+    document.graph4.colorize();
+    document.graph4.draw_multiple_bar_chart({key: 'f', style: {styles: {'stroke-width': '2pt'}}}, 'line_graph');
+    document.graph4.add_hovers({layer: 'line_graph'}); }
 
 if (Meteor.isClient) {
-$(document).ready(loaditup);
-}
+    $(document).ready(loaditup); }

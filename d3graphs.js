@@ -221,7 +221,48 @@ register_graphing_module(
 		    return x.label && x.data; })
 		.filter(function(x) { return x;})
 		.length == graph.data.length; };
+
+	function column_count() {
+	    return Math.max.apply(graph, graph.data.map(function(x) {
+		return x.data.length; })); }
 	
+	graph.draw_multiple_bar_chart = function(params, layer) {
+ 	    layer = layer || this.gen_layer_name();
+	    var key = params.key;
+	    var data = hash_to_array(this.data);
+	    var svg = this.svg;
+	    var scale_start = this.y_axis.start;
+	    var scale_end = this.y_axis.end;
+	    var height = this.inner_height;
+	    var columns = column_count();
+	    var column_width = this.inner_width / columns;
+	    var bars = data.length;
+	    var bar_width = column_width / bars;
+	    var graph = this;
+	    
+	    function datum_height(d) {
+		var scale = scale_end - scale_start;
+		var datum = d[key] - scale_start;
+		return (datum / scale) * height; }
+
+	    for (var j in data) {
+		var sub_data = data[j].data;
+		console.log(JSON.stringify(sub_data));
+		enter_and_exit(svg, sub_data, 'rect',
+			   [layer],
+			   [params.style])
+		    .attr('width', bar_width)
+		    .attr('datum_value', function(d) {
+			return d[key]; })
+		    .attr('x', interval_getter(column_width, 
+					       this.margin_left 
+					       + (bar_width * j)))
+		    .attr('height', datum_height)
+		    .attr('y', function(d, i) {
+			return (graph.margin_top + height) - datum_height(d); })
+		    .attr('fill', function (d, i) {
+			return data[j].__color; }); }}
+
 	graph.draw_multiple_line_graphs = function(params, layer) {
  	    layer = layer || this.gen_layer_name();
 	    var key = params.key;
@@ -240,7 +281,6 @@ register_graphing_module(
 		var datum = d[key] - scale_start;
 		return (datum / scale) * height; }
 
-	    console.log(data);
 	    enter_and_exit(svg, data, 'polyline',
 			   [layer],
 			   [params.style])
