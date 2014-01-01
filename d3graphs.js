@@ -206,6 +206,10 @@ function descend(from_hash, to_hash) {
 function returner(a) {
     return a; }
 
+function extractor(key) {
+    return function(d, i) {
+	return d[key]; }}
+
 function hash_to_array(hash) {
     var array = [];
     for (var i in hash) {
@@ -222,7 +226,7 @@ register_graphing_module(
 		.filter(function(x) { return x;})
 		.length == graph.data.length; };
 
-	graph.column_count() {
+	graph.column_count = function() {
 	    return Math.max.apply(graph, graph.data.map(function(x) {
 		return x.data.length; })); }
 	
@@ -234,7 +238,7 @@ register_graphing_module(
 	    var scale_start = this.y_axis.start;
 	    var scale_end = this.y_axis.end;
 	    var height = this.inner_height;
-	    var columns = column_count();
+	    var columns = this.column_count();
 	    var column_width = this.inner_width / columns;
 	    var bars = data.length;
 	    var bar_width = column_width / bars;
@@ -406,7 +410,7 @@ register_graphing_module(
 register_graphing_module(
     'hovers', function(graph) {
 
-	graph.get_datum_height = function(scale_end, scale_start, key) {
+	graph.get_datum_height = function(scale_end, scale_start, height, key) {
 	    return function(d) {
 		var scale = scale_end - scale_start;
 		var datum = d[key] - scale_start;
@@ -419,8 +423,8 @@ register_graphing_module(
 	    var bottom = this.margin_bottom;
 	    var scale_start = this.y_axis.start;
 	    var scale_end = this.y_axis.end;
-	    var datum_height = this.get_datum_height(scale_end, scale_start, key);
-
+	    var datum_height = this.get_datum_height(scale_end, scale_start, height, key);
+	    console.log(JSON.stringify({bottom: bottom, key: key, data: data.map(datum_height)}));
 	    for (var i in data) {
 		var d = data[i];
 		points.push({x: interval_getter(column_width, margin_left)(false, i),
@@ -435,7 +439,7 @@ register_graphing_module(
 	    var scale_end = this.y_axis.end;  
 	    var height = this.inner_height;
 	    var columns = this.column_count();
-	    var column_width = this.inner_width / bars;
+	    var column_width = this.inner_width / columns;
 	    
 	    if (divide_columns) {
 		var bars = data.length;
@@ -454,10 +458,28 @@ register_graphing_module(
 		    d.__color)); }
 	    return points; };
 
-	graph.draw_dots = function(params, layer) {
+	graph.draw_dots_multiple = function(params, layer) {
  	    layer = layer || this.gen_layer_name();
 	    var above_layer = params.layer;
 	    var data = this.data;
+	    var points = this.plot_points_multiple(params.key, params.divide_columns);
+	    var columns = this.column_count();
+	    var bars = data.length;
+	    var bar_width = this.inner_width / columns;
+	    if (params.divide_columns) {
+		bar_width = column_width / bars; }
+	    
+	    for (var j in points) {
+		var points_set = points[j];
+		enter_and_exit(this.svg, points_set, 'circle',
+			       [layer],
+			       [params.style])
+		    .attr('width', bar_width)
+		    .attr('datum_value', extractor('datum'))
+		    .attr('cx', extractor('x'))
+		    .attr('cy', extractor('y'))
+		    .attr('r', (params.radius || '3'))
+		    .attr('fill', extractor('color')); }
 	    }; 
 
 

@@ -165,7 +165,9 @@ loaditup = function() {
 		      styles: {'text-align': 'center'}}}, 
 	'axes'); 
     document.graph5.colorize();
-    document.graph5.draw_multiple_area_graph({key: 'f', style: {styles: {'stroke-width': '2pt'}}}, 'line_graph'); }
+    document.graph5.draw_multiple_area_graph({key: 'f', style: {styles: {'stroke-width': '2pt'}}}, 'line_graph');
+    document.graph5.draw_dots_multiple({key: 'f'}, 'dots');
+    }
 
 if (Meteor.isClient) {
     $(document).ready(loaditup); }
