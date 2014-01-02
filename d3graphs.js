@@ -145,13 +145,13 @@ function extract_from_hash(hash, key, including_fields) {
     return a; }
 
  selector = function(tagname, layername) {
-    var s = tagname + ' .' + layername;
+    var s = tagname + '.' + layername;
     for (var i = 2; i < arguments.length; i++) {
 	s += '.' + arguments[i]; }
     return s; }
 
 function apply_classes(classes, to) {
-    var s = classes.join(".");
+    var s = classes.join(" ");
     return to.attr('class', s); }
 
 function grabber(key) {
@@ -164,12 +164,17 @@ function interval_getter(interval_length, offset) {
 	    + (i * interval_length); }; }
 
 function enter_and_exit(svg, data, tag, classes, styles) {
-    return apply_style(
+    console.log(selector.apply(false,[tag].concat(classes)));
+    var sel = svg.selectAll(selector.apply(false, [tag].concat(classes)))
+	.data(data);
+
+    sel.enter().append(tag);
+
+    apply_style(
 	apply_classes(
-	    classes,
-	    svg.selectAll(selector.apply([tag].concat(classes)))
-		.data(data).enter().append(tag)), 
-	styles); }
+	    classes, sel),
+	styles);
+    return sel; }
 
 
 // take a list of styles ending with the highest in precedence and apply them to the d3 
@@ -261,6 +266,21 @@ function nearest(array, value) {
     return n; }
 
 register_graphing_module(
+    'sockets', function(graph) {
+	
+	graph.open_socket = function(url) {
+	    graph.socket = eio(url);
+	    graph.socket.onopen = function() {
+		graph.socket.onmessage = function(data) {
+		    data = JSON.parse(data);
+		    console.log(data);
+		    if (data.op == 'reload-data') {
+			graph.data = data.data;
+			graph.render(); }}; }; }
+
+});
+
+register_graphing_module(
     'render_chain', function(graph) {
 	graph.chain = [];
 	graph.use = function(fn_name) {
@@ -312,7 +332,7 @@ register_graphing_module(
 	    for (var j in data) {
 		var sub_data = data[j].data;
 		enter_and_exit(svg, sub_data, 'rect',
-			   [layer],
+			       [layer, sub_data.label],
 			   [params.style])
 		    .attr('width', bar_width)
 		    .attr('datum_value', function(d) {
@@ -528,7 +548,7 @@ register_graphing_module(
 	    for (var j in points) {
 		var points_set = points[j];
 		enter_and_exit(this.svg, points_set, 'circle',
-			       [layer],
+			       [layer, '__dots', data[j].label],
 			       [params.style])
 		    .attr('width', bar_width)
 		    .attr('datum_value', extractor('datum'))
@@ -551,7 +571,7 @@ register_graphing_module(
 	    for (var j in points) {
 		var points_set = points[j];
 		enter_and_exit(this.svg, points_set, 'text',
-			       [layer],
+			       [layer, this.data[j].label],
 			       [params.style])
 		    .attr('datum_value', compose(extractor(params.key), compose(JSON.parse, extractor('datum'))))
 		    .attr('x', compose(delay(sum, 10), extractor('x')))
@@ -623,6 +643,8 @@ register_graphing_module(
 		    return this.className + " " + layer + '_' + i; })
 		.style('opacity', '0.0');
 
+	    detail_hovers.exit();
+
 	    var overlays = enter_and_exit(graph.svg, data[0], tag,
 					  [layer],
 					  [params.style]);
@@ -648,7 +670,8 @@ register_graphing_module(
 		.on('mouseover', function(d, i) {
 		    graph.svg.selectAll('.' + layer + '_' + i).style('opacity', '0.8'); })
 		.on('mouseout', function(d, i) {
-		    graph.svg.selectAll('.' + layer + '_' + i).style('opacity', '0.0'); }); }});
+		    graph.svg.selectAll('.' + layer + '_' + i).style('opacity', '0.0'); });
+	    overlays.exit(); }});
 	    
 	    
 register_graphing_module(
@@ -671,10 +694,10 @@ register_graphing_module(
 		var datum = d[key] - scale_start;
 		return (datum / scale) * height; }
 
-	    enter_and_exit(svg, data, 'line',
+	    var lines = enter_and_exit(svg, data, 'line',
 			   [layer],
-			   [params.style])
-		.attr('x1', interval_getter(bar_width, this.margin_left))
+			   [params.style]);
+	    lines.attr('x1', interval_getter(bar_width, this.margin_left))
 		.attr('x2', interval_getter(bar_width, this.margin_left + bar_width))
 		.attr('datum_value', function(d) {
 		    return d[key]; })
@@ -687,8 +710,9 @@ register_graphing_module(
 		    return (graph.margin_top + height) - datum_height(d); })
 		.attr('stroke', function (d, i) {
 		    return '#333'; });
+	    lines.exit(); };
 
-}});
+});
 	    
 
 register_graphing_module(
@@ -736,11 +760,12 @@ register_graphing_module(
 
 	    // draw axis border line
 	    bline = enter_and_exit(svg, borderline, 'line', [layer, 'y_axis', 'borderline'],
-				  [params.guideline_style, params.axis_style])
-		.attr('x1', borderline.x1)
+				  [params.guideline_style, params.axis_style]);
+	    bline.attr('x1', borderline.x1)
 		.attr('y1', borderline.y1)
 		.attr('x2', borderline.x2)
 		.attr('y2', borderline.y2);
+	    bline.exit();
 	    
 	    // draw guidelines
 
@@ -763,23 +788,25 @@ register_graphing_module(
 
 	    guidelines = get_key(data, key);
 	    glines = enter_and_exit(svg, data, 'line', [layer, 'y_axis', 'guideline'],
-				  [params.guideline_style])
-		.attr('y1', function(d, i) {
+				  [params.guideline_style]);
+	    glines.attr('y1', function(d, i) {
 		    return graph.margin_top + (i * interval_length); })
 		.attr('x1', guideline_end)
 		.attr('y2', function(d, i) {
 		    return graph.margin_top + (i * interval_length); })
 		.attr('x2', guideline_start);
-	    
+	    glines.exit();
+
 	    // draw labels
 	    
 	    var text_offset = (offset + this.offset_x) / 2;
 	    labels = enter_and_exit(svg, data, 'text', 
-				    [layer, 'x_axis', 'label'], 
-				    [params.font_style])
-		.attr('y', interval_getter(interval_length, this.margin_top  + 12))
+				    [layer, 'y_axis', 'label'], 
+				    [params.font_style]);
+	    labels.attr('y', interval_getter(interval_length, this.margin_top  + 12))
 		.attr('x', text_offset)
-		.text(returner); }
+		.text(returner);
+	    labels.exit(); }
 
 	graph.draw_axis_x = function(params, layer) {
 	    layer = layer || this.gen_layer_name();
@@ -808,13 +835,14 @@ register_graphing_module(
 	    var borderline = {x1: this.margin_left, x2: this.margin_right, y1: offset, y2: offset};
 
 	    // draw axis border line
-	    line = svg.selectAll(selector('line', layer, 'x_axis', 'borderline'))
-		.data([borderline]).enter().append('line')
-		.attr('x1', borderline.x1)
+	    line = enter_and_exit(svg, data, 'line',
+				  [layer, 'x_axis', 'borderline'],
+				  [params.guideline_style, params.axis_style]);
+	    line.attr('x1', borderline.x1)
 		.attr('y1', borderline.y1)
 		.attr('x2', borderline.x2)
 		.attr('y2', borderline.y2);
-	    apply_style(line, [params.guideline_style, params.axis_style]);
+	    line.exit();
 	    
 	    // draw guidelines
 
@@ -825,26 +853,28 @@ register_graphing_module(
 	    var graph = this;
 
 	    guidelines = get_key(data, key);
-	    glines = svg.selectAll(selector('line', layer, 'x_axis', 'guideline'))
-		.data(data).enter().append('line')
-		.attr('x1', function(d, i) {
+	    glines = enter_and_exit(svg, data, 'line', 
+				    [layer, 'x_axis', 'guideline'],
+				    [params.guideline_style]);
+	    glines.attr('x1', function(d, i) {
 		    return graph.margin_left + (i * interval_length); })
 		.attr('y1', guideline_top)
 		.attr('x2', function(d, i) {
 		    return graph.margin_left + (i * interval_length); })
 		.attr('y2', guideline_btm);
-	    apply_style(glines, [params.guideline_style]);
-	    
+	    glines.exit();
+
 	    // draw labels
 	    
 	    var text_offset = (offset + this.height) / 2;
 	    labels = enter_and_exit(svg, data, 'text', 
 				    [layer, 'x_axis', 'label'], 
-				    [params.font_style])
-		.attr('x', interval_getter(interval_length, (this.margin_left
+				    [params.font_style]);
+	    labels.attr('x', interval_getter(interval_length, (this.margin_left
 							     + (interval_length / 2))))
 		.attr('y', text_offset)
-		.text(returner); }});	    
+		.text(returner);
+	    labels.exit(); }});	    
 		
 
 if (Meteor.isClient) {

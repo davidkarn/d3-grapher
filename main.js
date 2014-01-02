@@ -164,14 +164,15 @@ loaditup = function() {
 			      fill:'#444'}, 
 		      styles: {'text-align': 'center'}}}, 
 	'axes'); 
-    document.graph5.colorize();
+    document.graph5.use('colorize');
     document.graph5.use('draw_multiple_area_graph', 
 			{key: 'f', style: {styles: {'stroke-width': '2pt'}}}, 
 			'line_graph');
     document.graph5.use('add_vertical_bar_hover', 
 			{key: 'f'}, 
 			'dots');
-        document.graph5.render();
+    document.graph5.render();
+    document.graph5.open_socket('ws://localhost:3005');
     }
 
 if (Meteor.isClient) {
