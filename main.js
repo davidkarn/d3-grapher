@@ -64,7 +64,7 @@ loaditup = function() {
 	'axes'); 
     document.graph3.colorize();
     document.graph3.draw_multiple_line_graphs({key: 'f', style: {styles: {'stroke-width': '2pt'}}}, 'line_graph');
-//    document.graph3.add_hovers({layer: 'line_graph'}); 
+    document.graph3.add_vertical_bar_hover({key: 'f'}, 'dots');
 
     document.graph4 = create_graph(
 	d3.select('body')
@@ -166,7 +166,7 @@ loaditup = function() {
 	'axes'); 
     document.graph5.colorize();
     document.graph5.draw_multiple_area_graph({key: 'f', style: {styles: {'stroke-width': '2pt'}}}, 'line_graph');
-    document.graph5.draw_dots_multiple({key: 'f'}, 'dots');
+    document.graph5.add_vertical_bar_hover({key: 'f'}, 'dots');
     }
 
 if (Meteor.isClient) {

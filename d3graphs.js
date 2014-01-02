@@ -216,6 +216,53 @@ function hash_to_array(hash) {
 	array.push(hash[i]); }
     return array; }
 
+function sum() {
+    var s = 0;
+    for (var i = 0; i < arguments.length; i++) {
+	s += arguments[i]; }
+    console.log(s);
+    return s; }
+
+function compose(a, b) {
+    return function(x) {
+	return a(b(x)); }}
+
+function delay(fn) {
+    var delayed_args = [];
+    for (var i = 1; i < arguments.length; i++) {
+	delayed_args.push(arguments[i]); }
+    return function() {
+	var args = delayed_args.slice(0);
+	var j = 0;
+	for (var i = 0; i < arguments.length; i++) {
+	    while(args[j]) {
+		j++; }
+	    args[j] = arguments[i]; }
+	return fn.apply(false, args); }}
+
+function get_attr(node, attr) {
+    var item = node.attributes.getNamedItem(attr);
+    return (item ? item.value  : false); }
+
+function compose_or(x, y) {
+    return function(v) {
+	return y(v) || x(v); }; }
+
+function unique(array) {
+    var ar = [];
+    for (var i in array) {
+	if (ar.indexOf(array[i]) < 0) {
+	    ar.push(array[i]); }}
+    return ar; }
+
+function nearest(array, value) {
+    var n = array[0];
+    for (var i = 1; i < array.length; i++) {
+	var v = array[i];
+	if (Math.abs(v - value) < Math.abs(n - value)) {
+	    n = v; }}
+    return n; }
+
 register_graphing_module(
     'multiples', function(graph) {
 	
@@ -482,7 +529,61 @@ register_graphing_module(
 		    .attr('fill', extractor('color')); }
 	    }; 
 
+	graph.draw_labels_multiple = function(params, layer) {
+	    layer = layer || this.gen_layer_name();
+	    var data = this.data;
+	    var points = this.plot_points_multiple(params.key, params.divide_columns);
+	    var columns = this.column_count();
+	    var bars = data.length;
+	    var bar_width = this.inner_width / columns;
+	    if (params.divide_columns) {
+		bar_width = column_width / bars; }
+	    
+	    for (var j in points) {
+		var points_set = points[j];
+		enter_and_exit(this.svg, points_set, 'text',
+			       [layer],
+			       [params.style])
+		    .attr('datum_value', compose(extractor(params.key), compose(JSON.parse, extractor('datum'))))
+		    .attr('x', compose(delay(sum, 10), extractor('x')))
+		    .attr('cx', extractor('x'))
+		    .attr('y', compose(delay(sum, -8), extractor('y')))
+		    .text(compose(extractor(params.key), compose(JSON.parse, extractor('datum')))); }
+	};
 
+	graph.add_vertical_bar_hover = function(params, layer) {
+	    layer = layer || this.gen_layer_name();
+	    params.style = {styles: {'opacity': '0.0'}};
+	    this.draw_labels_multiple(params, layer);
+	    this.draw_dots_multiple(params, layer);
+	    var graph = this;
+	    var svg = this.svg;
+
+	    var line = enter_and_exit(this.svg, [true], 'line',
+				      [layer + '_bar'],
+				      [{styles: {'stroke-width': '2pt', stroke: '#333', 
+						 opacity: '0.0'}},
+				       params.bar_style])
+		.attr('y1', this.margin_top)
+		.attr('y2', this.margin_bottom);
+	    var hovers = svg.selectAll('.' + layer);
+	    var xs = unique(hovers[0].map(compose_or(delay(get_attr, false, 'x'),
+					       delay(get_attr, false, 'cx'))));
+	    this.svg.on('mousemove.', function() {
+		var mouse = d3.mouse(svg[0][0]);
+		if (mouse[0] < graph.margin_left || mouse[0] >= graph.margin_right) {
+		    line.style('opacity', '0.0');
+		    hovers.style('opacity', '0.0'); 
+		    return; }
+		line.attr('x1', mouse[0])
+		    .attr('x2', mouse[0])
+		    .style('opacity', '1.0');
+		var n = nearest(xs, mouse[0]); 
+		console.log(n);
+		hovers.style('opacity', function(d, i) {
+		    if (d.cx == n || d.x == n) {
+			return '1.0'; }
+		    return '0.0'; }); }); }
 
 	graph.add_hovers = function(params, layer) {
  	    layer = layer || this.gen_layer_name();
