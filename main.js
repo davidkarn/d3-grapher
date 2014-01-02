@@ -144,7 +144,7 @@ loaditup = function() {
 	       {test: 'five', f: 5.6}, 
 	       {test: 'six', f: 4.4}]}], 
 				   {});
-    document.graph5.draw_axes(
+    document.graph5.use('draw_axes',
 	{key: 'test', 
 	 guideline_style: {styles: {stroke:'#ddd', 
 				    'stroke-width': '0.5pt'}}, 
@@ -165,8 +165,13 @@ loaditup = function() {
 		      styles: {'text-align': 'center'}}}, 
 	'axes'); 
     document.graph5.colorize();
-    document.graph5.draw_multiple_area_graph({key: 'f', style: {styles: {'stroke-width': '2pt'}}}, 'line_graph');
-    document.graph5.add_vertical_bar_hover({key: 'f'}, 'dots');
+    document.graph5.use('draw_multiple_area_graph', 
+			{key: 'f', style: {styles: {'stroke-width': '2pt'}}}, 
+			'line_graph');
+    document.graph5.use('add_vertical_bar_hover', 
+			{key: 'f'}, 
+			'dots');
+        document.graph5.render();
     }
 
 if (Meteor.isClient) {

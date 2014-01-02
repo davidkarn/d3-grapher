@@ -188,14 +188,12 @@ function apply_style(items, styles) {
 
 function merge_style(styles) {
     styles = styles.filter(function(x) {return x; });
-    console.log(JSON.stringify(styles));
     var style = {styles: {}, attrs: {}};
     for (var i in styles) {
 	style = {styles: descend(style.styles || {},
 				 styles[i].styles || {}),
 		 attrs: descend(style.attrs || {},
 				styles[i].attrs || {})}; }
-    console.log(JSON.stringify(style));
     return style; }
 
 function descend(from_hash, to_hash) {
@@ -220,7 +218,6 @@ function sum() {
     var s = 0;
     for (var i = 0; i < arguments.length; i++) {
 	s += arguments[i]; }
-    console.log(s);
     return s; }
 
 function compose(a, b) {
@@ -264,6 +261,22 @@ function nearest(array, value) {
     return n; }
 
 register_graphing_module(
+    'render_chain', function(graph) {
+	graph.chain = [];
+	graph.use = function(fn_name) {
+	    var args = [];
+	    var graph = this;
+	    for (var i = 1; i < arguments.length; i++) {
+		args.push(arguments[i]); }
+	    graph.chain.push(function() {
+		graph[fn_name].apply(graph, args); }); };
+
+	graph.render = function() {
+	    for (var i in this.chain) {
+		this.chain[i](); }};
+	});
+
+register_graphing_module(
     'multiples', function(graph) {
 	
 	graph.has_multiple_datas = function() {
@@ -298,7 +311,6 @@ register_graphing_module(
 
 	    for (var j in data) {
 		var sub_data = data[j].data;
-		console.log(JSON.stringify(sub_data));
 		enter_and_exit(svg, sub_data, 'rect',
 			   [layer],
 			   [params.style])
@@ -340,7 +352,6 @@ register_graphing_module(
 		    var data = d.data; 
 		    for (var i in data) {
 			var datum = data[i];
-			console.log(JSON.stringify(datum));
 			var y = (graph.margin_top + height) - datum_height(datum);
 			var x = interval_getter(bar_width, graph.margin_left)(false, i);
 			points += '' + x + ',' + y + ' '; }
@@ -439,7 +450,6 @@ register_graphing_module(
 		var datum = d[key] - scale_start;
 		return (datum / scale) * height; }
 
-	    console.log(data);
 	    enter_and_exit(svg, data, 'rect',
 			   [layer],
 			   [params.style])
@@ -471,7 +481,6 @@ register_graphing_module(
 	    var scale_start = this.y_axis.start;
 	    var scale_end = this.y_axis.end;
 	    var datum_height = this.get_datum_height(scale_end, scale_start, height, key);
-	    console.log(JSON.stringify({bottom: bottom, key: key, data: data.map(datum_height)}));
 	    for (var i in data) {
 		var d = data[i];
 		points.push({x: interval_getter(column_width, margin_left)(false, i),
@@ -561,7 +570,7 @@ register_graphing_module(
 
 	    var line = enter_and_exit(this.svg, [true], 'line',
 				      [layer + '_bar'],
-				      [{styles: {'stroke-width': '2pt', stroke: '#333', 
+				      [{styles: {'stroke-width': '0.5pt', stroke: '#f88', 
 						 opacity: '0.0'}},
 				       params.bar_style])
 		.attr('y1', this.margin_top)
@@ -579,7 +588,6 @@ register_graphing_module(
 		    .attr('x2', mouse[0])
 		    .style('opacity', '1.0');
 		var n = nearest(xs, mouse[0]); 
-		console.log(n);
 		hovers.style('opacity', function(d, i) {
 		    if (d.cx == n || d.x == n) {
 			return '1.0'; }
@@ -622,7 +630,6 @@ register_graphing_module(
 	    for (var i =0; i < data[0][0].attributes.length; i++) {
 		var item = data[0][0].attributes.item(i);
 		overlays.attr(item.name, function(d, i) {
-		    console.log(d);
 		    return d.attributes.getNamedItem(item.name).value; }); }
 
 	    for (var style in data[0][0].style) {
@@ -664,7 +671,6 @@ register_graphing_module(
 		var datum = d[key] - scale_start;
 		return (datum / scale) * height; }
 
-	    console.log(data);
 	    enter_and_exit(svg, data, 'line',
 			   [layer],
 			   [params.style])
@@ -722,13 +728,12 @@ register_graphing_module(
 			return a; })
 		    .sort(sort_fun); }
 
-	    console.log(JSON.stringify(data)); 
 
 	    var svg = this.svg;
 	    var offset = params.offset 
 		|| this.margin_left;
 	    var borderline = {y1: this.margin_top, y2: this.margin_bottom, x1: offset, x2: offset};
-	    console.log(JSON.stringify(borderline));
+
 	    // draw axis border line
 	    bline = enter_and_exit(svg, borderline, 'line', [layer, 'y_axis', 'borderline'],
 				  [params.guideline_style, params.axis_style])
@@ -801,7 +806,7 @@ register_graphing_module(
 	    var offset = params.offset 
 		|| this.margin_bottom;
 	    var borderline = {x1: this.margin_left, x2: this.margin_right, y1: offset, y2: offset};
-	    console.log(JSON.stringify(borderline));
+
 	    // draw axis border line
 	    line = svg.selectAll(selector('line', layer, 'x_axis', 'borderline'))
 		.data([borderline]).enter().append('line')
@@ -856,8 +861,11 @@ if (Meteor.isClient) {
   });
 }
 
+function random_dec(upto, decs) {
+    var exp = Math.pow(10, decs || 0);
+    return Math.round(Math.random() * upto * exp , decs || 0) / exp; }
+
 if (Meteor.isServer) {
-  Meteor.startup(function () {
-    // code to run on server at startup
-  });
+    Meteor.startup(function () { 
+    });
 }
