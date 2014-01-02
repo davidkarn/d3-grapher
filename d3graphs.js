@@ -291,6 +291,9 @@ register_graphing_module(
 	    graph.chain.push(function() {
 		graph[fn_name].apply(graph, args); }); };
 
+	graph.transition = function(sel) {
+	    return sel.transition().delay(graph.tr_delay || 0).duration(graph.tr_duration || 2000); }
+
 	graph.render = function() {
 	    for (var i in this.chain) {
 		this.chain[i](); }};
@@ -421,15 +424,17 @@ register_graphing_module(
 		var datum = d[key] - scale_start;
 		return (datum / scale) * height; }
 
-	    enter_and_exit(svg, data, 'path',
+	    var areas = enter_and_exit(svg, data, 'path',
 			   [layer],
 			   [params.style])
+	    graph.transition(areas)
 		.attr('d', function(d) {
 		    return graph.make_path(d.data, key, scale_end, bar_width); })
 		.attr('datum_value', function(d) {
 		    return JSON.stringify(d); })
 		.attr('fill', function (d, i) {
-		    return d.__color || '#333'; }); };
+		    return d.__color || '#333'; }); 
+	    areas.exit();};
 	    
     });
 
@@ -547,15 +552,17 @@ register_graphing_module(
 	    
 	    for (var j in points) {
 		var points_set = points[j];
-		enter_and_exit(this.svg, points_set, 'circle',
+		var sel = enter_and_exit(this.svg, points_set, 'circle',
 			       [layer, '__dots', data[j].label],
-			       [params.style])
+			       [params.style]);
+		this.transition(sel)
 		    .attr('width', bar_width)
 		    .attr('datum_value', extractor('datum'))
 		    .attr('cx', extractor('x'))
 		    .attr('cy', extractor('y'))
 		    .attr('r', (params.radius || '3'))
-		    .attr('fill', extractor('color')); }
+		    .attr('fill', extractor('color'));
+		sel.exit(); }
 	    }; 
 
 	graph.draw_labels_multiple = function(params, layer) {
@@ -570,14 +577,16 @@ register_graphing_module(
 	    
 	    for (var j in points) {
 		var points_set = points[j];
-		enter_and_exit(this.svg, points_set, 'text',
+		var points_sel = enter_and_exit(this.svg, points_set, 'text',
 			       [layer, this.data[j].label],
-			       [params.style])
+			       [params.style]);
+		this.transition(points_sel)
 		    .attr('datum_value', compose(extractor(params.key), compose(JSON.parse, extractor('datum'))))
 		    .attr('x', compose(delay(sum, 10), extractor('x')))
 		    .attr('cx', extractor('x'))
 		    .attr('y', compose(delay(sum, -8), extractor('y')))
-		    .text(compose(extractor(params.key), compose(JSON.parse, extractor('datum')))); }
+		    .text(compose(extractor(params.key), compose(JSON.parse, extractor('datum'))));
+		points_sel.exit(); }
 	};
 
 	graph.add_vertical_bar_hover = function(params, layer) {
@@ -592,7 +601,8 @@ register_graphing_module(
 				      [layer + '_bar'],
 				      [{styles: {'stroke-width': '0.5pt', stroke: '#f88', 
 						 opacity: '0.0'}},
-				       params.bar_style])
+				       params.bar_style]);
+	    graph.transition(line)
 		.attr('y1', this.margin_top)
 		.attr('y2', this.margin_bottom);
 	    var hovers = svg.selectAll('.' + layer);
@@ -761,7 +771,8 @@ register_graphing_module(
 	    // draw axis border line
 	    bline = enter_and_exit(svg, borderline, 'line', [layer, 'y_axis', 'borderline'],
 				  [params.guideline_style, params.axis_style]);
-	    bline.attr('x1', borderline.x1)
+	    this.transition(bline)
+		.attr('x1', borderline.x1)
 		.attr('y1', borderline.y1)
 		.attr('x2', borderline.x2)
 		.attr('y2', borderline.y2);
@@ -789,7 +800,8 @@ register_graphing_module(
 	    guidelines = get_key(data, key);
 	    glines = enter_and_exit(svg, data, 'line', [layer, 'y_axis', 'guideline'],
 				  [params.guideline_style]);
-	    glines.attr('y1', function(d, i) {
+	    this.transition(glines)
+		.attr('y1', function(d, i) {
 		    return graph.margin_top + (i * interval_length); })
 		.attr('x1', guideline_end)
 		.attr('y2', function(d, i) {
@@ -803,7 +815,8 @@ register_graphing_module(
 	    labels = enter_and_exit(svg, data, 'text', 
 				    [layer, 'y_axis', 'label'], 
 				    [params.font_style]);
-	    labels.attr('y', interval_getter(interval_length, this.margin_top  + 12))
+	    this.transition(labels)
+		.attr('y', interval_getter(interval_length, this.margin_top  + 12))
 		.attr('x', text_offset)
 		.text(returner);
 	    labels.exit(); }
@@ -863,7 +876,7 @@ register_graphing_module(
 		    return graph.margin_left + (i * interval_length); })
 		.attr('y2', guideline_btm);
 	    glines.exit();
-
+	    graph.glines = glines;
 	    // draw labels
 	    
 	    var text_offset = (offset + this.height) / 2;
