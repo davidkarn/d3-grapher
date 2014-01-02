@@ -265,6 +265,14 @@ function nearest(array, value) {
 	    n = v; }}
     return n; }
 
+function add_chunk_to_data(data, chunk) {
+    for (var i in chunk) {
+	var ch = chunk[i];
+	for (var j in data) {
+	    if (data[j].label == ch.label) {
+		data[j].data = data[j].data.concat(ch.data); }}}
+    return data; }
+
 register_graphing_module(
     'sockets', function(graph) {
 	
@@ -274,6 +282,9 @@ register_graphing_module(
 		graph.socket.onmessage = function(data) {
 		    data = JSON.parse(data);
 		    console.log(data);
+		    if (data.op == 'add-chunk') {
+			graph.data = add_chunk_to_data(graph.data, data.data); 
+			graph.render(); }
 		    if (data.op == 'reload-data') {
 			graph.data = data.data;
 			graph.render(); }}; }; }
@@ -763,7 +774,7 @@ register_graphing_module(
 		    .sort(sort_fun); }
 
 
-	    var svg = this.svg;
+	    var svg = this.get_axis_group(layer);
 	    var offset = params.offset 
 		|| this.margin_left;
 	    var borderline = {y1: this.margin_top, y2: this.margin_bottom, x1: offset, x2: offset};
@@ -821,6 +832,11 @@ register_graphing_module(
 		.text(returner);
 	    labels.exit(); }
 
+	graph.get_axis_group = function(layer) {
+	    var g = this.svg.selectAll('g.' + layer).data([true]);
+	    g.enter().append('g').attr('class', layer);
+	    return g; }
+
 	graph.draw_axis_x = function(params, layer) {
 	    layer = layer || this.gen_layer_name();
 	    var sort_fun = params.sort;
@@ -829,6 +845,7 @@ register_graphing_module(
 	    var sort = function(a, b) {
 		return sort_fun(a.key, b.key); }
 	    var data = extract_from_hash(this.data, key);
+	    var svg = this.get_axis_group(layer);
 
 	    if (this.has_multiple_datas()) {
 		data = this.data.map(function(x) {
@@ -842,7 +859,6 @@ register_graphing_module(
 	    if (sort_fun) {
 		data = data.sort(sort_fun); }
 
-	    var svg = this.svg;
 	    var offset = params.offset 
 		|| this.margin_bottom;
 	    var borderline = {x1: this.margin_left, x2: this.margin_right, y1: offset, y2: offset};
@@ -874,7 +890,8 @@ register_graphing_module(
 		.attr('y1', guideline_top)
 		.attr('x2', function(d, i) {
 		    return graph.margin_left + (i * interval_length); })
-		.attr('y2', guideline_btm);
+		.attr('y2', guideline_btm)
+		.style('z-index', -10);
 	    glines.exit();
 	    graph.glines = glines;
 	    // draw labels
