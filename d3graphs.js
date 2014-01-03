@@ -329,28 +329,16 @@ register_graphing_module(
 	
 	graph.draw_multiple_bar_chart = function(params, layer) {
  	    layer = layer || this.gen_layer_name();
-	    var key = params.key;
-	    var data = hash_to_array(this.data);
-	    var svg = this.svg;
-	    var scale_start = this.y_axis.start;
-	    var scale_end = this.y_axis.end;
-	    var height = this.inner_height;
-	    var columns = this.column_count();
-	    var column_width = this.inner_width / columns;
-	    var bars = data.length;
-	    var bar_width = column_width / bars;
 	    var graph = this;
-	    var datum_height = this.get_datum_height(scale_end, scale_start, height, key);
 	    var points = this.plot_points_multiple(params.key, true);
-
 
 	    for (var j in points) {
 		var points_set = points[j];
-		var bars = enter_and_exit(svg, points_set, 'rect',
-			       [layer, data[j].label],
+		var bars = enter_and_exit(this.svg, points_set, 'rect',
+			       [layer, this.data[j].label],
 			   [params.style]);
 		bars
-		    .attr('width', bar_width)
+		    .attr('width', extractor('width'))
 		    .attr('datum_value', extractor('datum_value'))
 		    .attr('x', extractor('x'))
 		    .attr('height', extractor('height'))
@@ -362,49 +350,33 @@ register_graphing_module(
 
 	graph.draw_multiple_line_graphs = function(params, layer) {
  	    layer = layer || this.gen_layer_name();
-	    var key = params.key;
-	    var data = hash_to_array(this.data);
-	    var svg = this.svg;
-	    var scale_start = this.y_axis.start;
-	    var scale_end = this.y_axis.end;
-	    var height = this.inner_height;
-	    var bars = Math.max.apply(this, data.map(function(x) {
-		return x.data.length; }));
-	    var bar_width = this.inner_width / bars;
 	    var graph = this;
-	    var datum_height = this.get_datum_height(scale_end, scale_start, height, key);
+	    var points = this.plot_points_multiple(params.key, false);
 
-	    enter_and_exit(svg, data, 'polyline',
+	    enter_and_exit(this.svg, points, 'polyline',
 			   [layer],
 			   [params.style])
 		.attr('points', function(d) {
+		    console.log(d);
 		    var points = "";
-		    var data = d.data; 
-		    for (var i in data) {
-			var datum = data[i];
-			var y = (graph.margin_top + height) - datum_height(datum);
-			var x = interval_getter(bar_width, graph.margin_left)(false, i);
-			points += '' + x + ',' + y + ' '; }
+		    for (var i in d) {
+			points += '' + d[i].x + ',' + d[i].y + ' '; }
 		    return points; })
-		.attr('datum_value', function(d) {
-		    return JSON.stringify(d); })
 		.style('fill', 'none')
 		.attr('stroke', function (d, i) {
-		    return d.__color || '#333'; }); };
+		    return d[0].color || '#333'; }); };
 
 	function mean(a) {
 	    return a.reduce(function(a,b) { return a + b; })
 		/ a.length; }
-	
-	graph.make_path = function(data, key, max, column_width) {
-	    var d = "M " + this.margin_left + ' ' + this.margin_bottom + " ";
+
+	graph.make_path = function(data, g) {
+	    var d = "M " + g.margin_left + ' ' + g.margin_bottom + " ";
 	    var graph = []
 		for (var i = 0; i < data.length; i++) {
-		    var datum = data[i];
-		    var x = this.margin_left + column_width * i;
-		    var y = this.margin_bottom - (this.inner_height * (datum[key] / max));
-		    graph.push([x,y]) }
-	    graph.push(this.margin_left + [column_width * (data.length - 1), this.margin_bottom]);
+		    graph.push([data[i].x,data[i].y]) }
+	    graph.push([g.margin_right, graph[graph.length - 1][1]]);
+	    graph.push([g.margin_right, g.margin_bottom]);
 	    d += "L " + graph[0].join(" ") + " ";
 	    for (i = 1; i < graph.length - 1; i++) {
 		var prev = graph[i - 1];
@@ -415,28 +387,18 @@ register_graphing_module(
 
 	graph.draw_multiple_area_graph = function(params, layer) {
  	    layer = layer || this.gen_layer_name();
-	    var key = params.key;
-	    var data = hash_to_array(this.data);
-	    var svg = this.svg;
-	    var scale_start = this.y_axis.start;
-	    var scale_end = this.y_axis.end;  
-	    var height = this.inner_height;
-	    var bars = Math.max.apply(this, data.map(function(x) {
-		return x.data.length; }));
-	    var bar_width = this.inner_width / bars;
 	    var graph = this;
-	    var datum_height = this.get_datum_height(scale_end, scale_start, height, key);
+	    var points = this.plot_points_multiple(params.key, false);
 
-	    var areas = enter_and_exit(svg, data, 'path',
+	    var areas = enter_and_exit(this.svg, points, 'path',
 			   [layer],
 			   [params.style])
 	    graph.transition(areas)
-		.attr('d', function(d) {
-		    return graph.make_path(d.data, key, scale_end, bar_width); })
+		.attr('d', delay(graph.make_path, false, graph))
 		.attr('datum_value', function(d) {
 		    return JSON.stringify(d); })
 		.attr('fill', function (d, i) {
-		    return d.__color || '#333'; }); 
+		    return d[0].color || '#333'; }); 
 	    areas.exit();};
 	    
     });
@@ -482,7 +444,6 @@ register_graphing_module(
 	    var bars = enter_and_exit(graph.svg, points, 'rect',
 			   [layer],
 			   [params.style]);
-	    console.log(points);
 	    bars
 		.attr('width', bar_width)
 		.attr('datum_value', extractor('datum'))
@@ -505,7 +466,7 @@ register_graphing_module(
 		var datum = d[key] - scale_start;
 		return (datum / scale) * height; }; };
 
-	graph.plot_points = function(key, margin_left, column_width, data, color) {
+	graph.plot_points = function(key, margin_left, column_width, data, color, bar_width) {
 	    var points = [];
 	    var height = this.inner_height;
 	    var top = this.margin_top;
@@ -519,7 +480,7 @@ register_graphing_module(
 		points.push({x: interval_getter(column_width, margin_left)(false, i),
 			     y: (bottom - height),
 			     height: height,
-			     width: column_width,
+			     width: (bar_width || column_width),
 			     datum: JSON.stringify(d),
 			     datum_value: JSON.stringify(d[key]),
 			     color: (color || d.__color)}); }; 
@@ -547,7 +508,8 @@ register_graphing_module(
 			+ (divide_columns ? bar_width * i : 0), 
 		    column_width, 
 		    d.data, 
-		    d.__color)); }
+		    d.__color,
+		    bar_width)); }
 	    return points; };
 
 	graph.merge_points = function(multiple_points) {
@@ -700,14 +662,12 @@ register_graphing_module(
 	
 	graph.draw_line_graph = function(params, layer) {
  	    layer = layer || this.gen_layer_name();
-	    var data = hash_to_array(this.data);
 	    var svg = this.svg;
-	    var bar_width = this.inner_width / data.length;
 	    var graph = this;
 
 	    var points = graph.plot_points(params.key, 
 					   graph.margin_left, 
-					   bar_width, 
+					   this.inner_width / this.data.length, 
 					   hash_to_array(this.data));
 
 
@@ -715,7 +675,7 @@ register_graphing_module(
 			   [layer],
 			   [params.style]);
 	    lines.attr('x1', extractor('x'))
-		.attr('x2', function(d) { return d.x + bar_width; })
+		.attr('x2', function(d) { return d.x + d.width; })
 		.attr('datum_value', extractor('datum'))
 		.attr('y1', extractor('y'))
 		.attr('y2', function(d, i) {
