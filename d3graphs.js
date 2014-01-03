@@ -246,6 +246,9 @@ function get_attr(node, attr) {
     var item = node.attributes.getNamedItem(attr);
     return (item ? item.value  : false); }
 
+function caller(to_call) {
+    return function(x) { return x[to_call](); }; }
+
 function compose_or(x, y) {
     return function(v) {
 	return y(v) || x(v); }; }
@@ -453,35 +456,43 @@ register_graphing_module(
 		graph.data[i].__color = colorizer(graph.data[i]); }
 	    return graph; }});
 
+register_graphing_module(
+    'layers', function(graph) {
+	
+	graph.layers_rendered = {};
+
+	graph.record_layer = function(layer, data) {
+	    graph.layers_rendered[layer] = data; }; });
 
 register_graphing_module(
     'bar_chart', function(graph) {
 	
 	graph.draw_bar_chart = function(params, layer) {
  	    layer = layer || this.gen_layer_name();
-	    var key = params.key;
 	    var data = hash_to_array(this.data);
-	    var svg = this.svg;
-	    var scale_start = this.y_axis.start;
-	    var scale_end = this.y_axis.end;
-	    var height = this.inner_height;
-	    var bars = data.length;
-	    var bar_width = this.inner_width / bars;
+	    var bar_width = this.inner_width / data.length;
 	    var graph = this;
-	    var datum_height = this.get_datum_height(scale_end, scale_start, height, key);
 
-	    enter_and_exit(svg, data, 'rect',
+	    var points = graph.plot_points(params.key, 
+					   graph.margin_left, 
+					   bar_width, 
+					   hash_to_array(this.data));
+
+	    var bars = enter_and_exit(graph.svg, points, 'rect',
 			   [layer],
-			   [params.style])
+			   [params.style]);
+	    console.log(points);
+	    graph.transition(bars)
 		.attr('width', bar_width)
-		.attr('datum_value', function(d) {
-		    return d[key]; })
-		.attr('x', interval_getter(bar_width, this.margin_left))
-		.attr('height', datum_height)
-		.attr('y', function(d, i) {
-		    return (graph.margin_top + height) - datum_height(d); })
-		.attr('fill', function (d, i) {
-		    return d.__color; });
+		.attr('datum_value', extractor('datum'))
+		.attr('x', compose(caller('toString'), extractor('x')))
+		.attr('height', extractor('height'))
+		.attr('y', extractor('y'))
+		.attr('fill', extractor('color'));
+	    
+	    graph.transition(bars.exit()); 
+	    
+	    graph.record_layer(layer, {points: points, tag: 'rect', content: 'bar_chart'});
 }});
 
 register_graphing_module(
@@ -503,8 +514,10 @@ register_graphing_module(
 	    var datum_height = this.get_datum_height(scale_end, scale_start, height, key);
 	    for (var i in data) {
 		var d = data[i];
+		var height = datum_height(d);
 		points.push({x: interval_getter(column_width, margin_left)(false, i),
-			     y: (bottom - datum_height(d)),
+			     y: (bottom - height),
+			     height: height,
 			     datum: JSON.stringify(d),
 			     color: (color || d.__color)}); }; 
 	    return points; }
@@ -624,28 +637,25 @@ register_graphing_module(
 	    var data = graph.svg.selectAll('.' + above_layer);
 	    var tag = data[0][0].tagName;
 	    var stroke_size = params.stroke_size || '5pt';
+	    var points = (graph.layers_rendered[above_layer] 
+			  && graph.layers_rendered[above_layer].points);
 
-	    var detail_hovers = enter_and_exit(graph.svg, data[0], 'text',
+	    var detail_hovers = enter_and_exit(graph.svg, points, 'text',
 					  [layer, 'label'],
 					  [params.style]);
+	    
+	    var ar = [];
 
-	    detail_hovers.attr('x', function(d) {
-		var attrs = d.attributes;
-		var a = attrs.getNamedItem('x') || attrs.getNamedItem('x1');
-		return parseInt(a.value) + 8; })
-		.attr('y', function(d) {
-		    var attrs = d.attributes;
-		    var a = attrs.getNamedItem('y') || attrs.getNamedItem('y1');
-		    return parseInt(a.value) - 14; })
-		.text(function(d) {
-		    return d.attributes.getNamedItem('datum_value').value; })
+	    detail_hovers.attr('x', extractor('x'))
+		.attr('y', extractor('y'))
+		.text(extractor('datum_value'))
 		.attr('font-size', '12px')
 		.attr('fill', '#000')
 		.style('background-color','#FFF')
 		.attr('font-family', 'verdana')
 		.attr('font-weight', 'bold')
 		.attr('class', function(d, i) {
-		    return this.className + " " + layer + '_' + i; })
+		    return above_layer + " " + layer + " " + layer + '_' + i; })
 		.style('opacity', '0.0');
 
 	    detail_hovers.exit();
@@ -684,34 +694,34 @@ register_graphing_module(
 	
 	graph.draw_line_graph = function(params, layer) {
  	    layer = layer || this.gen_layer_name();
-	    var key = params.key;
 	    var data = hash_to_array(this.data);
 	    var svg = this.svg;
-	    var scale_start = this.y_axis.start;
-	    var scale_end = this.y_axis.end;
-	    var height = this.inner_height;
-	    var bars = data.length;
-	    var bar_width = this.inner_width / bars;
+	    var bar_width = this.inner_width / data.length;
 	    var graph = this;
-	    var datum_height = this.get_datum_height(scale_end, scale_start, height, key);
 
-	    var lines = enter_and_exit(svg, data, 'line',
+	    var points = graph.plot_points(params.key, 
+					   graph.margin_left, 
+					   bar_width, 
+					   hash_to_array(this.data));
+
+
+	    var lines = enter_and_exit(svg, points, 'line',
 			   [layer],
 			   [params.style]);
-	    lines.attr('x1', interval_getter(bar_width, this.margin_left))
-		.attr('x2', interval_getter(bar_width, this.margin_left + bar_width))
-		.attr('datum_value', function(d) {
-		    return d[key]; })
-		.attr('y1', function(d, i) {
-		    return (graph.margin_top + height) - datum_height(d); })
+	    lines.attr('x1', extractor('x'))
+		.attr('x2', function(d) { return d.x + bar_width; })
+		.attr('datum_value', extractor('datum'))
+		.attr('y1', extractor('y'))
 		.attr('y2', function(d, i) {
-		    var d2 = data[i+1];
+		    var d2 = points[i+1];
 		    if (d2) {
-			return (graph.margin_top + height) - datum_height(d2); }
-		    return (graph.margin_top + height) - datum_height(d); })
+			return d2.y; }
+		    return d.y; })
 		.attr('stroke', function (d, i) {
 		    return '#333'; });
-	    lines.exit(); };
+	    lines.exit();
+	    
+	    this.record_layer(layer, {points: points, tag: 'line', content: 'line_graph'}); }
 
 });
 	    

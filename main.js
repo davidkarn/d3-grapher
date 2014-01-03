@@ -115,7 +115,7 @@ loaditup = function() {
 	'axes'); 
     document.graph4.colorize();
     document.graph4.draw_multiple_bar_chart({key: 'f', style: {styles: {'stroke-width': '2pt'}}}, 'line_graph');
-    document.graph4.add_hovers({layer: 'line_graph'}); 
+//    document.graph4.add_hovers({layer: 'line_graph'}); 
 
     document.graph5 = create_graph(
 	d3.select('body')
@@ -164,7 +164,7 @@ loaditup = function() {
 			      fill:'#444'}, 
 		      styles: {'text-align': 'center'}}}, 
 	'axes'); 
-    document.graph5.use('colorize');
+    document.graph5.colorize();
     document.graph5.use('draw_multiple_area_graph', 
 			{key: 'f', style: {styles: {'stroke-width': '2pt'}}}, 
 			'line_graph');
