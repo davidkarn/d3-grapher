@@ -341,23 +341,24 @@ register_graphing_module(
 	    var bar_width = column_width / bars;
 	    var graph = this;
 	    var datum_height = this.get_datum_height(scale_end, scale_start, height, key);
+	    var points = this.plot_points_multiple(params.key, true);
 
-	    for (var j in data) {
-		var sub_data = data[j].data;
-		enter_and_exit(svg, sub_data, 'rect',
-			       [layer, sub_data.label],
-			   [params.style])
+
+	    for (var j in points) {
+		var points_set = points[j];
+		var bars = enter_and_exit(svg, points_set, 'rect',
+			       [layer, data[j].label],
+			   [params.style]);
+		bars
 		    .attr('width', bar_width)
-		    .attr('datum_value', function(d) {
-			return d[key]; })
-		    .attr('x', interval_getter(column_width, 
-					       this.margin_left 
-					       + (bar_width * j)))
-		    .attr('height', datum_height)
-		    .attr('y', function(d, i) {
-			return (graph.margin_top + height) - datum_height(d); })
-		    .attr('fill', function (d, i) {
-			return data[j].__color; }); }}
+		    .attr('datum_value', extractor('datum_value'))
+		    .attr('x', extractor('x'))
+		    .attr('height', extractor('height'))
+		    .attr('y', extractor('y'))
+		    .attr('fill', extractor('color'));
+		graph.transition(bars.exit()); }
+
+	    this.record_layer(layer, {points: this.merge_points(points), tag: 'rect'}); }
 
 	graph.draw_multiple_line_graphs = function(params, layer) {
  	    layer = layer || this.gen_layer_name();
@@ -482,7 +483,7 @@ register_graphing_module(
 			   [layer],
 			   [params.style]);
 	    console.log(points);
-	    graph.transition(bars)
+	    bars
 		.attr('width', bar_width)
 		.attr('datum_value', extractor('datum'))
 		.attr('x', compose(caller('toString'), extractor('x')))
@@ -518,7 +519,9 @@ register_graphing_module(
 		points.push({x: interval_getter(column_width, margin_left)(false, i),
 			     y: (bottom - height),
 			     height: height,
+			     width: column_width,
 			     datum: JSON.stringify(d),
+			     datum_value: JSON.stringify(d[key]),
 			     color: (color || d.__color)}); }; 
 	    return points; }
 		
@@ -546,6 +549,9 @@ register_graphing_module(
 		    d.data, 
 		    d.__color)); }
 	    return points; };
+
+	graph.merge_points = function(multiple_points) {
+	    return multiple_points.reduce(function(a, b) { return a.concat(b); }); }
 
 	graph.draw_dots_multiple = function(params, layer) {
  	    layer = layer || this.gen_layer_name();
@@ -632,61 +638,61 @@ register_graphing_module(
 		    return '0.0'; }); }); }
 
 	graph.add_hovers = function(params, layer) {
- 	    layer = layer || this.gen_layer_name();
-	    var above_layer = params.layer;
-	    var data = graph.svg.selectAll('.' + above_layer);
-	    var tag = data[0][0].tagName;
-	    var stroke_size = params.stroke_size || '5pt';
-	    var points = (graph.layers_rendered[above_layer] 
-			  && graph.layers_rendered[above_layer].points);
+             layer = layer || this.gen_layer_name();
+            var above_layer = params.layer;
+            var data = graph.svg.selectAll('.' + above_layer);
+            var tag = data[0][0].tagName;
+            var stroke_size = params.stroke_size || '5pt';
+            var points = (graph.layers_rendered[above_layer] 
+                          && graph.layers_rendered[above_layer].points);
 
-	    var detail_hovers = enter_and_exit(graph.svg, points, 'text',
-					  [layer, 'label'],
-					  [params.style]);
-	    
-	    var ar = [];
+            var detail_hovers = enter_and_exit(graph.svg, points, 'text',
+                                          [layer, 'label'],
+                                          [params.style]);
+            
+            var ar = [];
 
-	    detail_hovers.attr('x', extractor('x'))
-		.attr('y', extractor('y'))
-		.text(extractor('datum_value'))
-		.attr('font-size', '12px')
-		.attr('fill', '#000')
-		.style('background-color','#FFF')
-		.attr('font-family', 'verdana')
-		.attr('font-weight', 'bold')
-		.attr('class', function(d, i) {
-		    return above_layer + " " + layer + " " + layer + '_' + i; })
-		.style('opacity', '0.0');
+            detail_hovers.attr('x', extractor('x'))
+                .attr('y', extractor('y'))
+                .text(extractor('datum_value'))
+                .attr('font-size', '12px')
+                .attr('fill', '#000')
+                .style('background-color','#FFF')
+                .attr('font-family', 'verdana')
+                .attr('font-weight', 'bold')
+                .attr('class', function(d, i) {
+                    return above_layer + " " + layer + " " + layer + '_' + i; })
+                .style('opacity', '0.0');
 
-	    detail_hovers.exit();
+            detail_hovers.exit();
 
-	    var overlays = enter_and_exit(graph.svg, data[0], tag,
-					  [layer],
-					  [params.style]);
+            var overlays = enter_and_exit(graph.svg, data[0], tag,
+                                          [layer],
+                                          [params.style]);
 
-	    for (var i =0; i < data[0][0].attributes.length; i++) {
-		var item = data[0][0].attributes.item(i);
-		overlays.attr(item.name, function(d, i) {
-		    return d.attributes.getNamedItem(item.name).value; }); }
+            for (var i =0; i < data[0][0].attributes.length; i++) {
+                var item = data[0][0].attributes.item(i);
+                overlays.attr(item.name, function(d, i) {
+                    return d.attributes.getNamedItem(item.name).value; }); }
 
-	    for (var style in data[0][0].style) {
-		overlays.style(style, function(d, i) {
-		    return d.style[style]; }); }
-	    
-	    overlays.attr('stroke-width', stroke_size)
-		.style('opacity', '0.0')
-		.attr('class', function(d, i) {
-		    return this.className + " " + layer + '_' + i; })
-		.attr('stroke', function(d) {
-		    attr = d.attributes.getNamedItem('fill') ||
-			d.attributes.getNamedItem('stroke');
-		    if (attr) { return attr.value; }
-		    return 'black'; })
-		.on('mouseover', function(d, i) {
-		    graph.svg.selectAll('.' + layer + '_' + i).style('opacity', '0.8'); })
-		.on('mouseout', function(d, i) {
-		    graph.svg.selectAll('.' + layer + '_' + i).style('opacity', '0.0'); });
-	    overlays.exit(); }});
+            for (var style in data[0][0].style) {
+                overlays.style(style, function(d, i) {
+                    return d.style[style]; }); }
+            
+            overlays.attr('stroke-width', stroke_size)
+                .style('opacity', '0.0')
+                .attr('class', function(d, i) {
+                    return this.className + " " + layer + '_' + i; })
+                .attr('stroke', function(d) {
+                    attr = d.attributes.getNamedItem('fill') ||
+                        d.attributes.getNamedItem('stroke');
+                    if (attr) { return attr.value; }
+                    return 'black'; })
+                .on('mouseover', function(d, i) {
+                    graph.svg.selectAll('.' + layer + '_' + i).style('opacity', '0.8'); })
+                .on('mouseout', function(d, i) {
+                    graph.svg.selectAll('.' + layer + '_' + i).style('opacity', '0.0'); });
+            overlays.exit(); }});
 	    
 	    
 register_graphing_module(
