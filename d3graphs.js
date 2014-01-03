@@ -284,7 +284,6 @@ register_graphing_module(
 	    graph.socket.onopen = function() {
 		graph.socket.onmessage = function(data) {
 		    data = JSON.parse(data);
-		    console.log(data);
 		    if (data.op == 'add-chunk') {
 			graph.data = add_chunk_to_data(graph.data, data.data); 
 			graph.render(); }
@@ -445,7 +444,7 @@ register_graphing_module(
 			   [layer],
 			   [params.style]);
 	    bars
-		.attr('width', bar_width)
+		.attr('width', extractor('width'))
 		.attr('datum_value', extractor('datum'))
 		.attr('x', compose(caller('toString'), extractor('x')))
 		.attr('height', extractor('height'))
@@ -468,17 +467,12 @@ register_graphing_module(
 
 	graph.plot_points = function(key, margin_left, column_width, data, color, bar_width) {
 	    var points = [];
-	    var height = this.inner_height;
-	    var top = this.margin_top;
-	    var bottom = this.margin_bottom;
-	    var scale_start = this.y_axis.start;
-	    var scale_end = this.y_axis.end;
-	    var datum_height = this.get_datum_height(scale_end, scale_start, height, key);
+	    var datum_height = this.get_datum_height(this.y_axis.end, this.y_axis.start, this.inner_height, key);
 	    for (var i in data) {
 		var d = data[i];
 		var height = datum_height(d);
 		points.push({x: interval_getter(column_width, margin_left)(false, i),
-			     y: (bottom - height),
+			     y: (this.margin_bottom - height),
 			     height: height,
 			     width: (bar_width || column_width),
 			     datum: JSON.stringify(d),
@@ -488,11 +482,7 @@ register_graphing_module(
 		
 	graph.plot_points_multiple = function(key, divide_columns) {
 	    var data = this.data;
-	    var scale_start = this.y_axis.start;
-	    var scale_end = this.y_axis.end;  
-	    var height = this.inner_height;
-	    var columns = this.column_count();
-	    var column_width = this.inner_width / columns;
+	    var column_width = this.inner_width / this.column_count();
 	    
 	    if (divide_columns) {
 		var bars = data.length;
@@ -517,14 +507,8 @@ register_graphing_module(
 
 	graph.draw_dots_multiple = function(params, layer) {
  	    layer = layer || this.gen_layer_name();
-	    var above_layer = params.layer;
 	    var data = this.data;
 	    var points = this.plot_points_multiple(params.key, params.divide_columns);
-	    var columns = this.column_count();
-	    var bars = data.length;
-	    var bar_width = this.inner_width / columns;
-	    if (params.divide_columns) {
-		bar_width = column_width / bars; }
 	    
 	    for (var j in points) {
 		var points_set = points[j];
@@ -532,8 +516,6 @@ register_graphing_module(
 			       [layer, '__dots', data[j].label],
 			       [params.style]);
 		this.transition(sel)
-		    .attr('width', bar_width)
-		    .attr('datum_value', extractor('datum'))
 		    .attr('cx', extractor('x'))
 		    .attr('cy', extractor('y'))
 		    .attr('r', (params.radius || '3'))
@@ -545,11 +527,6 @@ register_graphing_module(
 	    layer = layer || this.gen_layer_name();
 	    var data = this.data;
 	    var points = this.plot_points_multiple(params.key, params.divide_columns);
-	    var columns = this.column_count();
-	    var bars = data.length;
-	    var bar_width = this.inner_width / columns;
-	    if (params.divide_columns) {
-		bar_width = column_width / bars; }
 	    
 	    for (var j in points) {
 		var points_set = points[j];
@@ -582,17 +559,19 @@ register_graphing_module(
 		.attr('y1', this.margin_top)
 		.attr('y2', this.margin_bottom);
 	    this.svg.on('mousemove.', function() {
-		var mouse = d3.mouse(svg[0][0]);
-	    var hovers = svg.selectAll('.' + layer);
+		var mouse = d3.mouse(this.svg[0][0]);
+	    var hovers = this.svg.selectAll('.' + layer);
 	    var xs = unique(hovers[0].map(compose_or(delay(get_attr, false, 'x'),
 							 delay(get_attr, false, 'cx'))));
 		if (mouse[0] < graph.margin_left || mouse[0] >= graph.margin_right) {
 		    line.style('opacity', '0.0');
 		    hovers.style('opacity', '0.0'); 
 		    return; }
+
 		line.attr('x1', mouse[0])
 		    .attr('x2', mouse[0])
 		    .style('opacity', '1.0');
+
 		var n = nearest(xs, mouse[0]); 
 		hovers.style('opacity', function(d, i) {
 		    if (d.cx == n || d.x == n) {
@@ -659,12 +638,10 @@ register_graphing_module(
 	    
 register_graphing_module(
     'line_graph', function(graph) {
-	
 	graph.draw_line_graph = function(params, layer) {
  	    layer = layer || this.gen_layer_name();
 	    var svg = this.svg;
 	    var graph = this;
-
 	    var points = graph.plot_points(params.key, 
 					   graph.margin_left, 
 					   this.inner_width / this.data.length, 
@@ -688,7 +665,6 @@ register_graphing_module(
 	    lines.exit();
 	    
 	    this.record_layer(layer, {points: points, tag: 'line', content: 'line_graph'}); }
-
 });
 	    
 
