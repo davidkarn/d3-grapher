@@ -303,7 +303,7 @@ register_graphing_module(
 		graph[fn_name].apply(graph, args); }); };
 
 	graph.transition = function(sel) {
-	    return sel.transition().delay(graph.tr_delay || 0).duration(graph.tr_duration || 2000); }
+	    return sel.transition().delay(graph.tr_delay || 0).duration(graph.tr_duration || 750); }
 
 	graph.render = function() {
 	    for (var i in this.chain) {
@@ -337,11 +337,7 @@ register_graphing_module(
 	    var bars = data.length;
 	    var bar_width = column_width / bars;
 	    var graph = this;
-	    
-	    function datum_height(d) {
-		var scale = scale_end - scale_start;
-		var datum = d[key] - scale_start;
-		return (datum / scale) * height; }
+	    var datum_height = this.get_datum_height(scale_end, scale_start, height, key);
 
 	    for (var j in data) {
 		var sub_data = data[j].data;
@@ -372,11 +368,7 @@ register_graphing_module(
 		return x.data.length; }));
 	    var bar_width = this.inner_width / bars;
 	    var graph = this;
-	    
-	    function datum_height(d) {
-		var scale = scale_end - scale_start;
-		var datum = d[key] - scale_start;
-		return (datum / scale) * height; }
+	    var datum_height = this.get_datum_height(scale_end, scale_start, height, key);
 
 	    enter_and_exit(svg, data, 'polyline',
 			   [layer],
@@ -429,11 +421,7 @@ register_graphing_module(
 		return x.data.length; }));
 	    var bar_width = this.inner_width / bars;
 	    var graph = this;
-	    
-	    function datum_height(d) {
-		var scale = scale_end - scale_start;
-		var datum = d[key] - scale_start;
-		return (datum / scale) * height; }
+	    var datum_height = this.get_datum_height(scale_end, scale_start, height, key);
 
 	    var areas = enter_and_exit(svg, data, 'path',
 			   [layer],
@@ -480,11 +468,7 @@ register_graphing_module(
 	    var bars = data.length;
 	    var bar_width = this.inner_width / bars;
 	    var graph = this;
-	    
-	    function datum_height(d) {
-		var scale = scale_end - scale_start;
-		var datum = d[key] - scale_start;
-		return (datum / scale) * height; }
+	    var datum_height = this.get_datum_height(scale_end, scale_start, height, key);
 
 	    enter_and_exit(svg, data, 'rect',
 			   [layer],
@@ -616,11 +600,11 @@ register_graphing_module(
 	    graph.transition(line)
 		.attr('y1', this.margin_top)
 		.attr('y2', this.margin_bottom);
-	    var hovers = svg.selectAll('.' + layer);
-	    var xs = unique(hovers[0].map(compose_or(delay(get_attr, false, 'x'),
-					       delay(get_attr, false, 'cx'))));
 	    this.svg.on('mousemove.', function() {
 		var mouse = d3.mouse(svg[0][0]);
+	    var hovers = svg.selectAll('.' + layer);
+	    var xs = unique(hovers[0].map(compose_or(delay(get_attr, false, 'x'),
+							 delay(get_attr, false, 'cx'))));
 		if (mouse[0] < graph.margin_left || mouse[0] >= graph.margin_right) {
 		    line.style('opacity', '0.0');
 		    hovers.style('opacity', '0.0'); 
@@ -709,11 +693,7 @@ register_graphing_module(
 	    var bars = data.length;
 	    var bar_width = this.inner_width / bars;
 	    var graph = this;
-	    
-	    function datum_height(d) {
-		var scale = scale_end - scale_start;
-		var datum = d[key] - scale_start;
-		return (datum / scale) * height; }
+	    var datum_height = this.get_datum_height(scale_end, scale_start, height, key);
 
 	    var lines = enter_and_exit(svg, data, 'line',
 			   [layer],
@@ -885,7 +865,7 @@ register_graphing_module(
 	    glines = enter_and_exit(svg, data, 'line', 
 				    [layer, 'x_axis', 'guideline'],
 				    [params.guideline_style]);
-	    glines.attr('x1', function(d, i) {
+	    graph.transition(glines).attr('x1', function(d, i) {
 		    return graph.margin_left + (i * interval_length); })
 		.attr('y1', guideline_top)
 		.attr('x2', function(d, i) {
