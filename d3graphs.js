@@ -247,7 +247,11 @@ function get_attr(node, attr) {
     return (item ? item.value  : false); }
 
 function caller(to_call) {
-    return function(x) { return x[to_call](); }; }
+    return function(x) { 
+	var args = []
+	for (var i = 1; i < arguments.length; i++) {
+	    args.push(arguments[i]); }
+	return x[to_call].apply(x, args); }; }
 
 function compose_or(x, y) {
     return function(v) {
@@ -686,81 +690,116 @@ register_graphing_module(
 	    graph.draw_axis_y(y, layer); }
 
 	graph.draw_axis_y = function(params, layer) {
+	    graph.draw_axis(
+		descend({axis: 'y', 
+			 guidelines: true, 
+			 type: 'scale'},
+			params), layer); }
+
+	graph.draw_axis_x = function(params, layer) {
+	    graph.draw_axis(
+		descend({axis: 'x', 
+			 guidelines: true, 
+			 type: 'increments'},
+			params), layer); }
+
+	graph.get_axis_labels = function(params, data) {
+	    data = extract_from_hash(data, params.key);
+	    if (this.has_multiple_datas()) {
+		data = _.unique(
+		    this.data.map(function(x) { return extract_from_hash(x.data, params.key); })
+			.reduce(function(x, y) { return x.concat(y); })); }
+	    console.log(data);
+	    if (params.type == 'increments') {
+		return {data: data}; }
+	    
+	    data.sort(params.sort || default_sort);
+	    var intervals = params.intervals || data.length;
+	    var interval_amount = Math.ceil(data[data.length - 1] / intervals);
+	    
+	    var data = [];
+	    for (var i = intervals; i >= 1; i--) {
+		data.push(i*interval_amount); }
+
+	    return {data: data,
+		    start: (params.start || 0),
+		    end: (interval_amount * intervals)}; };
+
+	graph.get_axis_specs = function(axis) {
+	    if (axis == 'x') {
+		return {start: this.margin_left,
+			axis: 'x',
+			end: this.margin_right,
+			negative_offset: this.offset_y + this.height,
+			offset: this.margin_bottom }; }
+	    return {start: this.margin_top,
+		    axis: 'y',
+		    end: this.margin_bottom,
+		    negative_offset: this.offset_x,
+		    offset: this.margin_left }; }
+
+	graph.draw_borderline = function(svg, axis, style, layer) {
+	    bline = enter_and_exit(svg, 
+				   [(axis == 'x' ? 
+				    {x1: this.margin_left, x2: this.margin_right,
+				     y1: this.margin_bottom, y2: this.margin_bottom} 
+				    : {y1: this.margin_top, y2: this.margin_bottom,
+				       x1: this.margin_left, x2: this.margin_left})], 
+				   'line', [layer, axis  + '_axis', 'borderline'], style);
+	    this.transition(bline)
+		.attr('x1', extractor('x1'))
+		.attr('y1', extractor('y1'))
+		.attr('x2', extractor('x2'))
+		.attr('y2', extractor('y2'));
+	    this.transition(bline.exit()); }
+    
+	graph.draw_axis = function(params, layer) {
  	    layer = layer || this.gen_layer_name();
 	    var sort_fun = params.sort || default_sort;
 	    var key = params.key;
-//		|| (keys && keys(this.data[0])[0]);
-	    var sort = function(a, b) {
-		return sort_fun(a.key, b.key); }
-	    var data = extract_from_hash(this.data, key)
-		.sort(sort_fun);
-
-	    if (this.has_multiple_datas()) {
-		data = this.data.map(function(x) {
-		    return extract_from_hash(x.data, key); })
-		    .reduce(function(a, b) {
-			for (var i in b) {
-			    if (a.indexOf(b[i]) < 0) {
-				a.push(b[i]); }}
-			return a; })
-		    .sort(sort_fun); }
-
+	    var intervals = this.get_axis_labels(params, this.data);
+	    var this_axis = this.get_axis_specs(params.axis);
+	    var that_axis = this.get_axis_specs(params.axis == 'x' ? 'y' : 'x');
 
 	    var svg = this.get_axis_group(layer);
 	    var offset = params.offset 
 		|| this.margin_left;
 	    var borderline = {y1: this.margin_top, y2: this.margin_bottom, x1: offset, x2: offset};
 
-	    // draw axis border line
-	    bline = enter_and_exit(svg, borderline, 'line', [layer, 'y_axis', 'borderline'],
-				  [params.guideline_style, params.axis_style]);
-	    this.transition(bline)
-		.attr('x1', borderline.x1)
-		.attr('y1', borderline.y1)
-		.attr('x2', borderline.x2)
-		.attr('y2', borderline.y2);
-	    bline.exit();
-	    
-	    // draw guidelines
+	    this.draw_borderline(svg, params.axis, 
+				 [params.guideline_style, params.borderline_style], layer);
 
-	    var intervals = params.intervals || data.length;
-	    var start = 0;
-	    var interval_length = this.inner_height / intervals;
-	    var interval_amount = Math.ceil(data[data.length - 1] / intervals);
-	    var end = interval_amount * intervals;
-	    var guideline_end = this.margin_right;
-	    var guideline_start = offset;
 	    var graph = this;
-	    
-	    graph.y_axis = descend(params, {intervals: intervals, interval_length: interval_length,
-					    interval_amount: interval_amount,
-					    start: start, end: end, layer: layer, offset: offset});
+	    graph[params.axis+ '_axis'] = 
+		descend(params, 
+			{intervals: intervals.data, 
+			 start: intervals.start, end: intervals.end, layer: layer, 
+			 offset: this_axis.offset});
 
-	    var data = [];
-	    for (var i = intervals; i >= 1; i--) {
-		data.push(i*interval_amount); }
-
-	    guidelines = get_key(data, key);
-	    glines = enter_and_exit(svg, data, 'line', [layer, 'y_axis', 'guideline'],
+	    var interval_length = (this_axis.end - this_axis.start) / intervals.data.length;
+	    console.log(intervals.data);
+	    console.log(interval_length);
+	    glines = enter_and_exit(svg, intervals.data, 
+				    'line', [layer, this_axis.axis + '_axis', 'guideline'],
 				  [params.guideline_style]);
 	    this.transition(glines)
-		.attr('y1', function(d, i) {
-		    return graph.margin_top + (i * interval_length); })
-		.attr('x1', guideline_end)
-		.attr('y2', function(d, i) {
-		    return graph.margin_top + (i * interval_length); })
-		.attr('x2', guideline_start);
+		.attr(this_axis.axis + '1', function(d, i) {
+		    return this_axis.start + (i * interval_length); })
+		.attr(that_axis.axis + '1', that_axis.end)
+		.attr(this_axis.axis + '2', function(d, i) {
+		    return this_axis.start + (i * interval_length); })
+		.attr(that_axis.axis + '2', that_axis.start);
 	    glines.exit();
 
 	    // draw labels
 	    
-	    var text_offset = (offset + this.offset_x) / 2;
-	    labels = enter_and_exit(svg, data, 'text', 
-				    [layer, 'y_axis', 'label'], 
+	    var text_offset = this_axis.negative_offset;
+	    labels = enter_and_exit(svg, intervals.data, 'text', 
+				    [layer, this_axis.axis + '_axis', 'label'], 
 				    [params.font_style]);
 	    this.transition(labels)
-		.attr('y', interval_getter(interval_length, this.margin_top  + 12))
-		.attr('x', text_offset)
+		.attr(this_axis.axis, interval_getter(interval_length, this_axis.start  + 12))
+		.attr(that_axis.axis, text_offset)
 		.text(returner);
 	    labels.exit(); }
 
@@ -768,75 +807,7 @@ register_graphing_module(
 	    var g = this.svg.selectAll('g.' + layer).data([true]);
 	    g.enter().append('g').attr('class', layer);
 	    return g; }
-
-	graph.draw_axis_x = function(params, layer) {
-	    layer = layer || this.gen_layer_name();
-	    var sort_fun = params.sort;
-	    var key = params.key
-		|| (keys && keys(this.data[0])[0]);
-	    var sort = function(a, b) {
-		return sort_fun(a.key, b.key); }
-	    var data = extract_from_hash(this.data, key);
-	    var svg = this.get_axis_group(layer);
-
-	    if (this.has_multiple_datas()) {
-		data = this.data.map(function(x) {
-		    return extract_from_hash(x.data, key); })
-		    .reduce(function(a, b) {
-			for (var i in b) {
-			    if (a.indexOf(b[i]) < 0) {
-				a.push(b[i]); }}
-			return a; }); }
-
-	    if (sort_fun) {
-		data = data.sort(sort_fun); }
-
-	    var offset = params.offset 
-		|| this.margin_bottom;
-	    var borderline = {x1: this.margin_left, x2: this.margin_right, y1: offset, y2: offset};
-
-	    // draw axis border line
-	    line = enter_and_exit(svg, data, 'line',
-				  [layer, 'x_axis', 'borderline'],
-				  [params.guideline_style, params.axis_style]);
-	    line.attr('x1', borderline.x1)
-		.attr('y1', borderline.y1)
-		.attr('x2', borderline.x2)
-		.attr('y2', borderline.y2);
-	    line.exit();
-	    
-	    // draw guidelines
-
-	    var intervals = data.length;
-	    var interval_length = this.inner_width / intervals;
-	    var guideline_top = this.margin_top;
-	    var guideline_btm = offset;
-	    var graph = this;
-
-	    guidelines = get_key(data, key);
-	    glines = enter_and_exit(svg, data, 'line', 
-				    [layer, 'x_axis', 'guideline'],
-				    [params.guideline_style]);
-	    graph.transition(glines).attr('x1', function(d, i) {
-		    return graph.margin_left + (i * interval_length); })
-		.attr('y1', guideline_top)
-		.attr('x2', function(d, i) {
-		    return graph.margin_left + (i * interval_length); })
-		.attr('y2', guideline_btm)
-		.style('z-index', -10);
-	    glines.exit();
-	    graph.glines = glines;
-	    // draw labels
-	    
-	    var text_offset = (offset + this.height) / 2;
-	    labels = enter_and_exit(svg, data, 'text', 
-				    [layer, 'x_axis', 'label'], 
-				    [params.font_style]);
-	    labels.attr('x', interval_getter(interval_length, (this.margin_left
-							     + (interval_length / 2))))
-		.attr('y', text_offset)
-		.text(returner);
-	    labels.exit(); }});	    
+});
 		
 
 if (Meteor.isClient) {
