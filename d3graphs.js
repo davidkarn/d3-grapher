@@ -563,8 +563,8 @@ register_graphing_module(
 		.attr('y1', this.margin_top)
 		.attr('y2', this.margin_bottom);
 	    this.svg.on('mousemove.', function() {
-		var mouse = d3.mouse(this.svg[0][0]);
-	    var hovers = this.svg.selectAll('.' + layer);
+		var mouse = d3.mouse(svg[0][0]);
+	    var hovers = svg.selectAll('.' + layer);
 	    var xs = unique(hovers[0].map(compose_or(delay(get_attr, false, 'x'),
 							 delay(get_attr, false, 'cx'))));
 		if (mouse[0] < graph.margin_left || mouse[0] >= graph.margin_right) {
