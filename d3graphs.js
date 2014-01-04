@@ -309,7 +309,7 @@ register_graphing_module(
 		graph[fn_name].apply(graph, args); }); };
 
 	graph.transition = function(sel) {
-	    return sel.transition().delay(graph.tr_delay || 0).duration(graph.tr_duration || 750); }
+	    return sel.transition().delay(graph.tr_delay || 0).duration(graph.tr_duration || 300); }
 
 	graph.render = function() {
 	    for (var i in this.chain) {
@@ -326,8 +326,8 @@ register_graphing_module(
 		.filter(function(x) { return x;})
 		.length == graph.data.length; };
 
-	graph.column_count = function() {
-	    return Math.max.apply(graph, graph.data.map(function(x) {
+	graph.column_count = function(data) {
+	    return Math.max.apply(graph, data.map(function(x) {
 		return x.data.length; })); }
 	
 	graph.draw_multiple_bar_chart = function(params, layer) {
@@ -485,8 +485,8 @@ register_graphing_module(
 	    return points; }
 		
 	graph.plot_points_multiple = function(key, divide_columns) {
-	    var data = this.data;
-	    var column_width = this.inner_width / this.column_count();
+	    var data = this.prepare_data(this.data);
+	    var column_width = this.inner_width / this.column_count(data);
 	    
 	    if (divide_columns) {
 		var bars = data.length;
@@ -693,14 +693,16 @@ register_graphing_module(
 	    graph.draw_axis(
 		descend({axis: 'y', 
 			 guidelines: true, 
+			 intervals: 8,
 			 type: 'scale'},
 			params), layer); }
 
 	graph.draw_axis_x = function(params, layer) {
 	    graph.draw_axis(
 		descend({axis: 'x', 
+			 intervals_limit: 12,
 			 guidelines: true, 
-			 type: 'increments'},
+			 type: 'discrete'},
 			params), layer); }
 
 	graph.get_axis_labels = function(params, data) {
@@ -709,8 +711,11 @@ register_graphing_module(
 		data = _.unique(
 		    this.data.map(function(x) { return extract_from_hash(x.data, params.key); })
 			.reduce(function(x, y) { return x.concat(y); })); }
-	    console.log(data);
-	    if (params.type == 'increments') {
+
+	    if (params.type == 'discrete') {
+		var limit = params.intervals_limit;
+		if (limit > 0) {
+		    data = data.slice(-limit); }
 		return {data: data}; }
 	    
 	    data.sort(params.sort || default_sort);
@@ -774,8 +779,14 @@ register_graphing_module(
 		descend(params, 
 			{intervals: intervals.data, 
 			 start: intervals.start, end: intervals.end, layer: layer, 
+			 filterer: function(data) {
+			     if (params.type != 'discrete') {
+				 return data; }
+			     else { 
+				 return data.filter(function(x) {
+				     return intervals.data.indexOf(x[params.key]) >= 0; }); }},
 			 offset: this_axis.offset});
-
+	    console.log(intervals);
 	    var interval_length = (this_axis.end - this_axis.start) / intervals.data.length;
 	    console.log(intervals.data);
 	    console.log(interval_length);
@@ -802,6 +813,20 @@ register_graphing_module(
 		.attr(that_axis.axis, text_offset)
 		.text(returner);
 	    labels.exit(); }
+
+	function prep_data(data) {
+	    return graph.y_axis.filterer(graph.x_axis.filterer(data)); }
+
+	graph.prepare_data = function(data) {
+	    console.log(JSON.stringify({'prepping': data}));
+	    if (this.has_multiple_datas()) {
+		data = data.map(function(d) {
+		    var e = _.clone(d);
+		    e.data = prep_data(e.data); 
+		    return e; }); 
+		console.log(JSON.stringify({'prepping': data}));
+		return data; }
+	    return prep_data(data); }
 
 	graph.get_axis_group = function(layer) {
 	    var g = this.svg.selectAll('g.' + layer).data([true]);
